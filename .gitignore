@@ -1,0 +1,49 @@
+# oshexed: what stays out of the repository. The repo ships no Line 6 code or data (CLAUDE.md "Data rules"): the
+# app reads all of it from the user's own files at runtime.
+
+# ---- Build output and tools
+build*/
+cmake-build-*/
+out/
+.idea/
+.vs/
+.vscode/
+*.user
+compile_commands.json
+# The engine checkout (a link to it next to the sources).
+/luminoveau
+# Written by the engine at configure time.
+assets/shaders/
+
+# ---- Line 6 firmware and anything taken from it
+*.hxf
+extracted/
+work/
+builds/
+docs/
+# Firmware parts and dumps (fwedit / modpkg output).
+*.bin
+main_app/
+dsp/
+
+# ---- Captures and the user's own unit data
+*.pcap
+*.pcapng
+captures/
+# Presets, backups, IR / NAM captures, mod packages: personal or made from firmware data.
+*.hlx
+*.hxp
+*.wav
+*.nam
+*.ohem
+fixtures/local/
+
+# ---- Screenshots of Line 6 software (layout references: HX Edit, Helix Native)
+screens/
+
+# ---- Runtime files the app writes (settings, caches, history) if run from the source tree
+settings.ini
+unit_state.txt
+builds.txt
+ir_kinds.txt
+modules/
