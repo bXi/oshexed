@@ -1,5 +1,5 @@
-# oshexed: what stays out of the repository. The repo ships no Line 6 code or data (CLAUDE.md "Data rules"): the
-# app reads all of it from the user's own files at runtime.
+# oshexed: what stays out of the repository. The repo ships no Line 6 code or data: the app reads all of it from the
+# user's own files at runtime.
 
 # ---- Build output and tools
 build*/

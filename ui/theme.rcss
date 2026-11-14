@@ -1,0 +1,1312 @@
+/* Shared look for every editor screen. Layout follows HX Edit / Helix Native: preset sidebar,
+   signal flow, then the edit area (category, model, params). Colours are our own. */
+
+body {
+    font-family: UiSans;
+    font-size: 14dp;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    color: #d8d8d8;
+    background-color: #1b1c1f;
+}
+
+div, p { display: block; }
+
+/* Text fields: RmlUi draws no selection by itself (no default style), so a Shift+arrow / mouse selection was there
+   but invisible. Every input and textarea gets a visible selection and an explicit caret. */
+input selection, textarea selection { background-color: #2f74c0; color: #ffffff; }
+input, textarea { caret-color: #ffffff; }
+
+/* ---------------------------------------------------------------- tab rail */
+/* Left edge, full height. Open: icon + label. Closed: icons only, label pops out on hover. */
+.rail {
+    flex: 0 0 auto;
+    width: 150dp;
+    display: flex;
+    flex-direction: column;
+    background-color: #16171a;
+    border-right: 1dp #111214;
+}
+.rail.closed { width: 42dp; }
+.rail-tab {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 40dp;
+    padding: 0 10dp;
+    color: #8a8d93;
+    border-left: 3dp transparent;
+    cursor: pointer;
+}
+.rail-tab:hover { color: #ffffff; background-color: #222327; }
+.rail-tab.active { color: #ffffff; background-color: #2a2b2f; border-left-color: #2f74c0; }
+.rail-tab.toggle { border-bottom: 1dp #111214; }
+.rail-gap { flex: 1 1 auto; }
+.icon {
+    font-family: lucide;
+    font-size: 18dp;
+    width: 18dp;
+    text-align: center;
+    flex: 0 0 auto;
+}
+.rail-label { margin-left: 12dp; white-space: nowrap; }
+.rail.closed .rail-label { display: none; }
+.rail.closed .rail-tab:hover .rail-label {
+    display: block;
+    position: absolute;
+    left: 44dp;
+    top: 8dp;
+    z-index: 10;
+    margin-left: 0;
+    padding: 2dp 8dp;
+    color: #ffffff;
+    background-color: #3c3f45;
+    border-radius: 3dp;
+}
+
+/* Everything right of the rail: top bar, then the current page. */
+/* Growing boxes use `flex: 1 1 0px`, not `auto`: with an auto basis RmlUi first lays out the whole subtree to
+   measure it, and nested levels multiply that (a slider drag cost ~250 ms per frame). They only take the space
+   left over, so the basis doesn't change the result. */
+.shell { flex: 1 1 0px; display: flex; flex-direction: column; min-width: 0; }
+.page { flex: 1 1 0px; display: flex; flex-direction: column; min-height: 0; }
+.page.off { display: none; }
+
+/* The Firmware tab's notice: a dimmed cover over the whole tab (it takes the clicks), the box in its middle. */
+.fw-page { position: relative; }
+.notice-cover {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #000000b0;
+}
+.notice {
+    width: 720dp;
+    max-height: 94%;
+    overflow-y: auto;  /* a small window: the box scrolls instead of running off the page */
+    padding: 24dp 30dp;
+    border: 1dp #3a3c41;
+    border-left: 4dp #e8c040;
+    border-radius: 5dp;
+    background-color: #1f2023;
+    font-size: 15dp;
+    color: #c8c8c8;
+}
+.notice-title { margin-bottom: 20dp; font-size: 22dp; font-weight: bold; color: #ffffff; }
+.notice p { margin: 0 0 10dp 0; line-height: 1.35em; }
+.notice p.notice-gap { margin-top: 16dp; }
+.notice p.notice-more { margin-top: 28dp; color: #a9acb2; }
+.notice-section { margin: 30dp 0 12dp 0; font-size: 16dp; font-weight: bold; color: #e8c040; }
+.notice-step { display: flex; margin: 8dp 0 8dp 16dp; }
+.notice-unit { flex: 0 0 auto; width: 160dp; color: #ffffff; }
+.notice-how { flex: 1 1 0px; min-width: 0; }
+/* A link to a web page (open_url): opens in the system's browser. */
+.link { color: #6ab0ff; text-decoration: underline; cursor: pointer; }
+.link:hover { color: #9ccbff; }
+.notice-actions { display: flex; align-items: center; margin-top: 30dp; }
+.notice-actions .button { padding: 6dp 18dp; font-size: 15dp; }
+
+/* Simple pages (firmware, settings): a scrolling column of rows. */
+.page-body { padding: 14dp 20dp; }
+.page-title { font-size: 20dp; font-weight: bold; color: #ffffff; margin-bottom: 10dp; }
+.page-head { display: flex; align-items: center; margin-bottom: 10dp; }
+.page-head .page-title { margin-bottom: 0; }
+.page-section {
+    margin: 18dp 0 6dp 0;
+    padding-bottom: 3dp;
+    font-size: 12dp;
+    font-weight: bold;
+    color: #c8c8c8;
+    border-bottom: 1dp #2f3035;
+}
+.page-body p { margin: 6dp 0; color: #a9acb2; max-width: 760dp; }
+.page-body .hint { margin-top: 4dp; font-size: 12dp; color: #6b6e74; }
+.info-row { display: flex; align-items: center; padding: 3dp 0; }
+.info-label { flex: 0 0 auto; width: 120dp; color: #8a8d93; }
+.info-value { flex: 1 1 auto; color: #d8d8d8; }
+.info-row .button { margin-left: 12dp; flex: 0 0 auto; }
+.bad { color: #ff6b5e; font-weight: bold; }
+.warning { padding: 2dp 0; color: #ffaa55; }
+.rec-row { display: flex; padding: 2dp 0; }
+.rec-row:hover { background-color: #222327; }
+.rec-head { color: #8a8d93; font-size: 12dp; font-weight: bold; }
+.rec-head:hover { background-color: transparent; }
+.rec-name { flex: 0 0 auto; width: 220dp; }
+.rec-size { flex: 0 0 auto; width: 90dp; text-align: right; padding-right: 20dp; }
+.rec-crc { flex: 0 0 auto; width: 90dp; color: #8a8d93; }
+.rec-checks { flex: 1 1 auto; }
+.grow { flex: 1 1 auto; }
+
+/* ---------------------------------------------------------------- Firmware page: Unit / Open file / Flash */
+/* Sub-tabs across the top; each shows its section's state (coloured by tone) so it reads without opening it. */
+.fw-tabs {
+    flex: 0 0 auto;
+    display: flex;
+    padding: 12dp 20dp 0 20dp;
+    background-color: #16171a;
+    border-bottom: 1dp #2f3035;
+}
+.fw-tab {
+    flex: 0 0 auto;
+    width: 230dp;
+    margin-right: 6dp;
+    padding: 8dp 14dp 9dp 14dp;
+    border-radius: 6dp 6dp 0 0;
+    border-width: 0 0 3dp 0;
+    border-color: transparent;
+    background-color: #1f2024;
+    cursor: pointer;
+}
+.fw-tab:hover { background-color: #26272c; }
+.fw-tab.active { background-color: #1b1c1f; border-color: #2f74c0; }
+.fw-tab-name { font-size: 13dp; font-weight: bold; color: #8a8d93; }
+.fw-tab.active .fw-tab-name { color: #ffffff; }
+.fw-tab-state { margin-top: 3dp; font-size: 12dp; white-space: nowrap; overflow: hidden; color: #6b6e74; }
+/* Tones: ours = green, stock = blue, bad = red, none = grey. */
+.fw-tab-state.ours, .tone-ours { color: #6fcf7f; }
+.fw-tab-state.stock, .tone-stock { color: #6aa8ec; }
+.fw-tab-state.bad, .tone-bad { color: #ff6b5e; }
+
+/* The card that opens each section: label, the state in big type, a line of detail, then rows. The left bar
+   carries the tone. */
+.fw-card {
+    margin-bottom: 8dp;
+    padding: 14dp 18dp 12dp 18dp;
+    max-width: 900dp;
+    border-radius: 6dp;
+    border-width: 0 0 0 4dp;
+    border-color: #3a3c42;
+    background-color: #222327;
+}
+.fw-card.ours { border-color: #6fcf7f; }
+.fw-card.stock { border-color: #6aa8ec; }
+.fw-card.bad { border-color: #ff6b5e; }
+.fw-card-head { display: flex; align-items: center; }
+.fw-card-label { font-size: 12dp; font-weight: bold; color: #8a8d93; }
+.fw-headline { margin-top: 4dp; font-size: 26dp; font-weight: bold; color: #ffffff; }
+.fw-headline.small { font-size: 18dp; }
+.fw-card.ours .fw-headline { color: #6fcf7f; }
+.fw-card.stock .fw-headline { color: #6aa8ec; }
+.fw-card.bad .fw-headline { color: #ff6b5e; }
+.fw-detail { margin: 2dp 0 8dp 0; color: #a9acb2; }
+/* Our builds: one tile per mod the registry knows; the ones not in the build are dimmed. */
+.fw-mods { display: flex; flex-wrap: wrap; margin: 4dp 0 10dp 0; }
+.fw-mod {
+    flex: 0 0 auto;
+    width: 250dp;
+    margin: 0 8dp 8dp 0;
+    padding: 8dp 12dp;
+    border-radius: 5dp;
+    border-width: 1dp;
+    border-color: #3d6b47;
+    background-color: #1f2b22;
+}
+.fw-mod.off { border-color: #34363b; background-color: #1d1e21; }
+.fw-mod-name { font-size: 11dp; font-weight: bold; color: #6fcf7f; }
+.fw-mod.off .fw-mod-name { color: #6b6e74; }
+.fw-mod-title { margin-top: 2dp; font-size: 15dp; font-weight: bold; color: #ffffff; }
+.fw-mod.off .fw-mod-title { color: #8a8d93; }
+.fw-mod-what { margin-top: 2dp; font-size: 12dp; color: #a9acb2; }
+.fw-mod.off .fw-mod-what { color: #6b6e74; }
+
+/* Scrolling lists: .fill takes the space its flex parent gives it; .scroll fills .fill exactly, so
+   its height never comes from its content and the wheel has something to scroll. */
+.fill { flex: 1 1 0px; position: relative; min-height: 0; }
+.scroll { position: absolute; top: 0; bottom: 0; left: 0; right: 0; overflow-y: auto; }
+
+/* ---------------------------------------------------------------- IRs tab: slot list left, details right */
+.ir-page { flex: 1 1 0px; display: flex; flex-direction: row; min-height: 0; }
+.ir-list { flex: 1 1 0px; display: flex; flex-direction: column; min-width: 0; padding: 14dp 0 0 20dp; }
+.ir-head { padding-right: 12dp; }
+.ir-summary { flex: 0 0 auto; margin-right: 12dp; color: #8a8d93; font-size: 12dp; }
+.ir-row { display: flex; padding: 3dp 8dp; cursor: pointer; }
+.ir-row:hover { background-color: #2a2b2f; }
+.ir-row.selected { background-color: #3a3c41; color: #ffffff; }
+.ir-row.blank { color: #5c5f65; }
+.ir-num { flex: 0 0 auto; width: 44dp; color: #8a8d93; }
+.ir-name { flex: 1 1 0px; white-space: nowrap; overflow: hidden; }
+.ir-kind { flex: 0 0 auto; margin: 0 8dp; padding: 0 5dp; border-radius: 2dp; font-size: 11dp; color: #0b1a1c;
+           background-color: #00e5ff; }
+.ir-filter { flex: 0 0 auto; display: flex; padding: 0 12dp 8dp 0; }
+.ir-detail { flex: 0 0 auto; width: 340dp; padding: 14dp 20dp; border-left: 1dp #2f3035; }
+.ir-detail .hint { padding: 10dp 0; font-size: 12dp; }
+input.ir-name-edit {
+    flex: 1 1 0px;
+    height: 20dp;
+    padding: 2dp 6dp;
+    border-radius: 3dp;
+    background-color: #151619;
+    border: 1dp #3a3c41;
+    color: #ffffff;
+    font-size: 12dp;
+    cursor: text;
+}
+input.ir-name-edit:focus { border-color: #2f74c0; }
+/* Global EQ fields (Settings > Helix). */
+input.geq-edit {
+    flex: 0 0 auto;
+    width: 80dp;
+    height: 20dp;
+    padding: 2dp 6dp;
+    border-radius: 3dp;
+    background-color: #151619;
+    border: 1dp #3a3c41;
+    color: #ffffff;
+    font-size: 12dp;
+    text-align: right;
+    cursor: text;
+}
+input.geq-edit:focus { border-color: #2f74c0; }
+.geq-unit { margin-left: 8dp; color: #8a8d93; font-size: 12dp; }
+input.cc-edit { width: 40dp; margin-left: 6dp; text-align: center; }
+
+/* ---------------------------------------------------------------- Helix tab: Global EQ */
+/* Like HX Edit's Global EQ window: a dark panel with Reset / Apply EQ / power on top, the graph, the band columns and
+   the level. Band colours: low cut / high cut yellow, low peak red, mid teal, high blue. */
+.eq-panel { max-width: 920dp; padding: 10dp 12dp 12dp 12dp; background-color: #1f2023; border-radius: 6dp; }
+.eq-head { display: flex; align-items: center; margin-bottom: 10dp; }
+.eq-apply-label { margin-right: 8dp; font-size: 11dp; font-weight: bold; color: #8a8d93; }
+select.eq-apply { width: 160dp; margin-right: 0; }
+.eq-power {
+    width: 32dp;
+    height: 24dp;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4dp;
+    background-color: #2a2b2f;
+    color: #6b6e74;
+    cursor: pointer;
+}
+.eq-power:hover { background-color: #34363b; }
+.eq-power.on { color: #ffffff; background-color: #2f74c0; }
+/* The graph: 2 dB grid (0 dB brighter), log frequency grid; labels top and right inside the frame. */
+.eq-graph {
+    position: relative;
+    height: 290dp;
+    background-color: #121315;
+    border: 1dp #1f4a4a;
+}
+.eq-hline { position: absolute; left: 0; right: 0; height: 1dp; background-color: #1d1f22; }
+.eq-hline.major { background-color: #3a3c42; }
+.eq-hline span { position: absolute; right: 4dp; top: -7dp; font-size: 10dp; color: #8a8d93; }
+.eq-vline { position: absolute; top: 0; bottom: 0; width: 1dp; background-color: #1a1c1f; }
+.eq-vline.major { background-color: #25272b; }
+.eq-vline span { position: absolute; left: -10dp; width: 20dp; top: 3dp; text-align: center; font-size: 10dp; color: #8a8d93; }
+/* The curve: an anti-aliased image drawn at the graph's exact size (GlobalEqView), shown 1:1 over the grid. */
+img.eq-curve { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.eq-bypassed {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 44%;
+    text-align: center;
+    font-size: 16dp;
+    font-weight: bold;
+    color: #e0453a;
+}
+/* A handle, centred on its point; dragged in place ("drag: drag": drag events, no copy). Peaks: a filled dot;
+   cuts: a ring. */
+.eq-handle {
+    position: absolute;
+    width: 16dp;
+    height: 16dp;
+    margin-left: -8dp;
+    margin-top: -8dp;
+    box-sizing: border-box;
+    border-radius: 8dp;
+    border: 2dp transparent;
+    cursor: move;
+    drag: drag;
+    z-index: 2;
+}
+.eq-handle.low { background-color: #c8372d; }
+.eq-handle.mid { background-color: #2a9d88; }
+.eq-handle.high { background-color: #4572c0; }
+.eq-handle.lowcut, .eq-handle.highcut { border-color: #c9b519; background-color: #121315; }
+.eq-handle.selected { border-color: #ffffff; }
+.eq-handle.off { opacity: 0.7; }
+/* The band columns under the graph. */
+.eq-bands { display: flex; margin-top: 8dp; }
+.eq-band { flex: 1 1 0px; padding: 8dp 10dp; border-radius: 4dp; cursor: pointer; }
+.eq-band.selected { background-color: #2a2a22; }
+.eq-band-name { margin-bottom: 6dp; text-align: center; font-weight: bold; }
+.eq-band.lowcut .eq-band-name, .eq-band.highcut .eq-band-name { color: #e2cc22; }
+.eq-band.low .eq-band-name { color: #e0453a; }
+.eq-band.mid .eq-band-name { color: #3cc2aa; }
+.eq-band.high .eq-band-name { color: #6a9ae6; }
+.eq-param { margin-bottom: 6dp; }
+.eq-param-row { display: flex; align-items: center; }
+.eq-param-label { flex: 1 1 auto; font-size: 12dp; }
+.eq-band.lowcut .eq-param-label, .eq-band.highcut .eq-param-label { color: #e2cc22; }
+.eq-band.low .eq-param-label { color: #e0453a; }
+.eq-band.mid .eq-param-label { color: #3cc2aa; }
+.eq-band.high .eq-param-label { color: #6a9ae6; }
+input.eq-value {
+    flex: 0 0 auto;
+    width: 70dp;
+    padding: 1dp 4dp;
+    border: 1dp transparent;
+    border-radius: 3dp;
+    background-color: transparent;
+    color: #ffffff;
+    font-size: 12dp;
+    text-align: right;
+    cursor: text;
+}
+input.eq-value:hover { border-color: #3a3c41; }
+input.eq-value:focus { border-color: #2f74c0; background-color: #151619; }
+.eq-steps { flex: 0 0 auto; display: flex; flex-direction: column; margin-left: 2dp; }
+.eq-steps .icon { font-size: 10dp; line-height: 9dp; color: #a9acb2; cursor: pointer; }
+.eq-steps .icon:hover { color: #ffffff; }
+/* The bar: a thin track with the value's position, in the band's colour. */
+input.eq-bar { display: block; width: 100%; height: 6dp; margin-top: 2dp; }
+input.eq-bar slidertrack { height: 4dp; margin-top: 1dp; background-color: #2a2b2f; border-radius: 2dp; }
+input.eq-bar sliderbar { width: 10dp; height: 6dp; border-radius: 2dp; background-color: #c8c8c8; }
+input.eq-bar sliderarrowdec, input.eq-bar sliderarrowinc { width: 0; height: 0; }
+.eq-band.lowcut input.eq-bar sliderbar, .eq-band.highcut input.eq-bar sliderbar { background-color: #e2cc22; }
+.eq-band.low input.eq-bar sliderbar { background-color: #e0453a; }
+.eq-band.mid input.eq-bar sliderbar { background-color: #3cc2aa; }
+.eq-band.high input.eq-bar sliderbar { background-color: #6a9ae6; }
+.eq-level { width: 260dp; margin: 6dp auto 0 auto; }
+.eq-band-actions { display: flex; justify-content: flex-end; margin-top: 2dp; }
+/* Global settings (Settings > Helix). */
+.gs-layout { position: absolute; top: 0; bottom: 0; left: 0; right: 0; display: flex; }
+.gs-pages { flex: 0 0 auto; width: 170dp; padding: 10dp 0; overflow-y: auto; background-color: #1b1c1f;
+            border-right: 1dp #111214; }
+.gs-main { flex: 1 1 0px; position: relative; min-width: 0; }
+.gs-page { padding: 7dp 16dp; color: #a9acb2; cursor: pointer; }
+.gs-page:hover { background-color: #26272b; color: #ffffff; }
+.gs-page.active { background-color: #2f3035; color: #e8c040; border-left: 3dp #e8c040; padding-left: 13dp; }
+.gs-body { padding: 14dp 20dp; }
+.gs-title { margin-bottom: 8dp; font-size: 16dp; font-weight: bold; color: #e0e0e0; }
+.gs-row { display: flex; align-items: center; max-width: 640dp; min-height: 30dp; padding: 3dp 0; border-bottom: 1dp #26272b; }
+.gs-label { flex: 1 1 auto; color: #c8c8c8; }
+.gs-control { flex: 0 0 auto; width: 300dp; display: flex; justify-content: flex-end; }
+.gs-segs { display: flex; border: 1dp #3a3c41; border-radius: 3dp; }
+.gs-seg { padding: 2dp 10dp; color: #a9acb2; cursor: pointer; white-space: nowrap; border-left: 1dp #3a3c41; }
+.gs-seg:first-child { border-left-width: 0; }
+.gs-seg:hover { background-color: #2f3035; color: #ffffff; }
+.gs-seg.on { background-color: #2f74c0; color: #ffffff; }
+.gs-list { display: flex; width: 220dp; padding: 3dp 8dp; background-color: #2f3035; border-radius: 3dp; color: #e8c040;
+           cursor: pointer; white-space: nowrap; overflow: hidden; }
+.gs-list:hover { background-color: #383a40; }
+input.gs-number { width: 80dp; height: 20dp; padding: 2dp 6dp; background-color: #1b1c1f; border: 1dp #3a3c41;
+                  border-radius: 3dp; color: #ffffff; text-align: right; }
+input.gs-number:focus { border-color: #2f74c0; }
+.gs-unknown { color: #5c5f65; }
+/* The input block's Guitar In-Z / Pad, above its knobs. */
+.input-settings { flex: 0 0 auto; padding: 6dp 12dp; border-bottom: 1dp #2f3035; }
+.input-setting { display: flex; align-items: center; padding: 3dp 0; }
+.input-setting-label { flex: 0 0 auto; width: 110dp; color: #8a8d93; font-size: 12dp; }
+.ir-actions { display: flex; margin-top: 10dp; }
+.ir-actions .button { margin-right: 8dp; }
+.ir-confirm { margin-top: 12dp; padding: 10dp; border: 1dp #9c2f2a; border-radius: 3dp; background-color: #241a1a; }
+.ir-question { color: #ffffff; }
+.ir-note { margin-top: 4dp; font-size: 12dp; color: #ffaa55; }
+.ir-message { margin-top: 10dp; color: #a9acb2; }
+
+/* ---------------------------------------------------------------- right-click menu */
+.ctx-overlay { position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 90; }
+.ctx-menu {
+    position: absolute;
+    z-index: 91;
+    width: 220dp;
+    padding: 4dp 0;
+    background-color: #2a2b30;
+    border: 1dp #45474d;
+    border-radius: 4dp;
+    font-size: 13dp;
+    color: #e0e0e0;
+}
+.ctx-title { padding: 4dp 12dp 6dp 12dp; font-size: 11dp; color: #8a8d93; white-space: nowrap; overflow: hidden; }
+.ctx-item { padding: 4dp 12dp; cursor: pointer; white-space: nowrap; }
+.ctx-item:hover { background-color: #2f74c0; color: #ffffff; }
+.ctx-item.disabled { color: #5c5f65; cursor: default; }
+.ctx-item.checked { color: #e8c040; }
+.ctx-item.disabled:hover { background-color: transparent; color: #5c5f65; }
+.ctx-sep { height: 1dp; margin: 4dp 8dp; background-color: #3c3f45; }
+/* A row of colour dots in the menu (the snapshot colours' classes give the fills). */
+.ctx-palette { display: flex; flex-wrap: wrap; align-items: center; padding: 4dp 12dp; }
+.ctx-palette-label { flex: 0 0 auto; width: 100%; margin-bottom: 4dp; }
+.ctx-swatch {
+    flex: 0 0 auto;
+    width: 14dp;
+    height: 14dp;
+    box-sizing: border-box;
+    margin-right: 3dp;
+    border-radius: 7dp;
+    border: 2dp transparent;
+    cursor: pointer;
+}
+.ctx-swatch:hover { border-color: #8a8d93; }
+.ctx-swatch.on { border-color: #ffffff; }
+
+/* ---------------------------------------------------------------- status bar */
+.statusbar {
+    flex: 0 0 auto;
+    height: 22dp;
+    padding: 0 10dp;
+    line-height: 22dp;
+    font-size: 12dp;
+    color: #8a8d93;
+    background-color: #16171a;
+    border-top: 1dp #111214;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.button {
+    padding: 3dp 12dp;
+    background-color: #3c3f45;
+    border-radius: 3dp;
+    color: #ffffff;
+    cursor: pointer;
+}
+.button:hover { background-color: #4b4f56; }
+.button:active { background-color: #2f74c0; }
+
+/* Placeholder page before a firmware is loaded. (Not ".empty": empty flow slots use that class.) */
+.welcome {
+    flex: 1 1 0px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #8a8d93;
+}
+.welcome .hint { margin-top: 8dp; font-size: 12dp; color: #6b6e74; }
+.welcome .button { margin-top: 12dp; }
+
+.main { flex: 1 1 0px; display: flex; flex-direction: row; min-height: 0; }
+
+/* ---------------------------------------------------------------- sidebar */
+.sidebar {
+    flex: 0 0 auto;
+    width: 230dp;
+    display: flex;
+    flex-direction: column;
+    background-color: #202125;
+    border-right: 1dp #111214;
+}
+.tabs { flex: 0 0 auto; display: flex; background-color: #2a2b2f; }
+.tab { padding: 6dp 14dp; color: #8a8d93; font-weight: bold; }
+.tab.active { color: #ffffff; background-color: #3a3c41; }
+.section-title {
+    flex: 0 0 auto;
+    padding: 8dp 10dp 4dp 10dp;
+    font-size: 12dp;
+    font-weight: bold;
+    color: #c8c8c8;
+    background-color: #26272b;
+}
+.preset-list { background-color: #151619; }
+.preset { display: flex; padding: 2dp 8dp; cursor: pointer; drag: clone; }
+.preset:hover { background-color: #26272b; }
+.preset.selected { background-color: #4a4c52; color: #ffffff; }
+.preset:drag { background-color: #3a3c41; color: #ffffff; }
+.pmark { flex: 0 0 auto; color: #e8c040; visibility: hidden; }
+.preset.edited .pmark { visibility: visible; }
+/* The open preset changed since it was loaded or saved (next to the name in the preset bar). */
+.modified-mark { flex: 0 0 auto; margin: 0 8dp 0 -2dp; color: #e8c040; font-size: 18dp; font-weight: bold; }
+.preset-actions { flex: 0 0 auto; display: flex; padding: 5dp 6dp; background-color: #202125; border-top: 1dp #111214; }
+.pnum { width: 36dp; color: #c8c8c8; font-weight: bold; }
+
+/* Dropdowns (setlist, sub-list) */
+.dropdown { position: relative; flex: 0 0 auto; }
+.dropdown-head {
+    display: flex;
+    padding: 5dp 10dp;
+    background-color: #2f3035;
+    border-bottom: 1dp #111214;
+    color: #e8c040;
+    cursor: pointer;
+}
+.dropdown-head:hover { background-color: #383a40; }
+.caret { color: #8a8d93; }
+.dropdown-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background-color: #2f3035;
+    border: 1dp #111214;
+}
+.dropdown-item { padding: 4dp 10dp; cursor: pointer; }
+/* IR slot dropdown in a param row */
+.ir-drop { flex: 0 1 auto; width: 240dp; margin-left: 10dp; }
+.ir-drop .dropdown-head { padding: 2dp 8dp; border-bottom-width: 0; white-space: nowrap; overflow: hidden; }
+.ir-drop .dropdown-head.open { background-color: #383a40; }
+.ir-popup {
+    position: absolute;
+    z-index: 91;
+    width: 300dp;
+    overflow-y: auto;
+    padding: 2dp 0;
+    background-color: #2a2b30;
+    border: 1dp #45474d;
+    border-radius: 3dp;
+    font-size: 13dp;
+    color: #e0e0e0;
+}
+.ir-item { padding: 3dp 10dp; cursor: pointer; white-space: nowrap; overflow: hidden; }
+.ir-item:hover { background-color: #2f74c0; color: #ffffff; }
+.ir-item.empty { color: #5c5f65; }
+.ir-item.on { color: #e8c040; }
+.dropdown-item:hover { background-color: #4a4c52; }
+
+/* ---------------------------------------------------------------- content */
+.content { flex: 1 1 0px; display: flex; flex-direction: column; min-width: 0; }
+
+.presetbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    height: 36dp;
+    padding: 0 12dp;
+    background-color: #26272b;
+    border-bottom: 1dp #111214;
+}
+/* The preset's name, edited in place: looks like a title until focused. */
+input.preset-name {
+    flex: 1 1 0px;
+    min-width: 0;
+    height: 24dp;
+    padding: 2dp 6dp;
+    margin-right: 8dp;
+    border: 1dp transparent;
+    border-radius: 3dp;
+    background-color: transparent;
+    font-size: 17dp;
+    color: #ffffff;
+    cursor: text;
+}
+input.preset-name:hover { border-color: #3a3c41; }
+input.preset-name:focus { border-color: #2f74c0; background-color: #151619; }
+.dsp { width: 150dp; margin-left: 14dp; }
+.dsp-label { font-size: 11dp; color: #8a8d93; }
+.dsp-bar { height: 5dp; background-color: #3a3c41; }
+.dsp-fill { height: 5dp; background-color: #4fa3e0; }
+
+/* Snapshots: eight buttons and the rename field. Colours are HX Edit's snapshot colour names in our own shades. */
+.snapbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    height: 28dp;
+    padding: 0 12dp;
+    background-color: #1f2023;
+    border-bottom: 1dp #111214;
+}
+.snap {
+    flex: 1 1 0px;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    height: 20dp;
+    margin-right: 4dp;
+    padding: 0 6dp;
+    border-radius: 3dp;
+    background-color: #2a2b2f;
+    color: #a9acb2;
+    font-size: 12dp;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+}
+.snap:hover { background-color: #35373c; color: #ffffff; }
+.snap.selected { background-color: #4a4c52; color: #ffffff; }
+.snap-label { white-space: nowrap; }
+.snap-dot { flex: 0 0 auto; width: 8dp; height: 8dp; margin-right: 5dp; border-radius: 4dp; }
+.snapc-0 { background-color: #8a8d93; }
+.snapc-1 { background-color: #ffffff; }
+.snapc-2 { background-color: #e53935; }
+.snapc-3 { background-color: #e8590c; }
+.snapc-4 { background-color: #f59f00; }
+.snapc-5 { background-color: #fcc419; }
+.snapc-6 { background-color: #40c057; }
+.snapc-7 { background-color: #15aabf; }
+.snapc-8 { background-color: #228be6; }
+.snapc-9 { background-color: #7950f2; }
+.snapc-10 { background-color: #e64980; }
+/* The unit: a dot (green when connected) and the state, then Online / Offline. */
+.device { flex: 0 0 auto; display: flex; align-items: center; margin: 0 0 0 16dp; font-size: 12dp; color: #8a8d93; }
+.presetbar .button { margin-left: 4dp; }
+.presetbar .button.on { background-color: #2f74c0; }
+.pickbar { background-color: #1a2230; border-bottom: 1dp #2f74c0; }
+/* In-place rename of a preset row: the field takes the label's place, same font, a blue frame. "drag: none" so
+   selecting text in it doesn't start dragging the row. */
+input.row-rename {
+    flex: 1 1 0px;
+    min-width: 0;
+    margin: -2dp 0;
+    padding: 1dp 4dp;
+    border-radius: 2dp;
+    background-color: #151619;
+    border: 1dp #2f74c0;
+    color: #ffffff;
+    cursor: text;
+    drag: none;
+}
+.device-dot { width: 8dp; height: 8dp; margin-right: 6dp; border-radius: 4dp; background-color: #6b6e74; }
+.device.on { color: #d8d8d8; }
+.device.on .device-dot { background-color: #40c057; }
+.presetbar .seg { border-radius: 3dp; font-size: 12dp; }
+.unitbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    height: 26dp;
+    padding: 0 12dp;
+    background-color: #1b1c1f;
+    border-bottom: 1dp #111214;
+    font-size: 12dp;
+}
+.unitbar .seg { border-radius: 3dp; }
+/* Save confirmation under the preset bar. */
+.savebar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 6dp 12dp;
+    background-color: #241a1a;
+    border-bottom: 1dp #9c2f2a;
+    color: #ffffff;
+}
+.savebar .button { margin-left: 8dp; flex: 0 0 auto; }
+.seg.disabled { opacity: 0.4; cursor: default; }
+
+/* The selected snapshot's settings, one thin row under the buttons. */
+.snapedit {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    height: 26dp;
+    padding: 0 12dp;
+    background-color: #1b1c1f;
+    border-bottom: 1dp #111214;
+    font-size: 12dp;
+}
+.snap-field { flex: 0 0 auto; margin: 0 6dp 0 12dp; color: #8a8d93; }
+.snap-field:first-child { margin-left: 0; }
+.snap-unit { flex: 0 0 auto; margin-left: 4dp; color: #8a8d93; }
+.snap-colours { flex: 0 0 auto; display: flex; align-items: center; }
+.snap-colours .snap-dot { width: 12dp; height: 12dp; margin-right: 3dp; border-radius: 6dp; border: 2dp transparent; cursor: pointer; }
+.snap-colours .snap-dot.on { border-color: #ffffff; }
+.snap-colours .snap-dot:hover { border-color: #8a8d93; }
+input.snap-name, input.snap-tempo {
+    flex: 0 0 auto;
+    width: 150dp;
+    height: 20dp;
+    padding: 2dp 6dp;
+    border-radius: 3dp;
+    background-color: #151619;
+    border: 1dp #3a3c41;
+    color: #ffffff;
+    font-size: 12dp;
+    cursor: text;
+}
+input.snap-tempo { width: 50dp; }
+input.snap-name:focus, input.snap-tempo:focus { border-color: #2f74c0; }
+.button.small { flex: 0 0 auto; padding: 1dp 10dp; margin-left: 4dp; font-size: 12dp; }
+
+/* Amp / Cab tabs; Bypass / Controller Assign; Command Center */
+.seg-row { display: flex; flex-wrap: wrap; }
+.cab-tabs { flex: 0 0 auto; padding: 4dp 12dp 0 12dp; }
+.cab-tabs .seg { border-radius: 3dp; }
+.seg-row .seg { margin-bottom: 2dp; border-radius: 3dp; }
+.fs-insp-title { margin-bottom: 8dp; font-size: 16dp; font-weight: bold; color: #e0e0e0; }
+/* Bypass / Controller Assign (HX Edit's layout): the table on the left, the selected row's editor on the right. */
+.ca-table { flex: 0 0 auto; width: 420dp; display: flex; flex-direction: column; min-height: 0; border-right: 1dp #111214; }
+.ca-row { display: flex; padding: 3dp 8dp; cursor: pointer; font-size: 13dp; }
+.ca-row:hover { background-color: #26272b; }
+.ca-row.selected { background-color: #3a3c41; }
+.ca-head { cursor: default; font-weight: bold; color: #e0e0e0; background-color: #1b1c1f; border-bottom: 1dp #111214; }
+.ca-head:hover { background-color: #1b1c1f; }
+.ca-head .ca-col { cursor: pointer; }
+.ca-col { flex: 1 1 0px; min-width: 0; white-space: nowrap; overflow: hidden; text-align: center; }
+.ca-empty { padding: 10dp; }
+.ca-editor { flex: 1 1 0px; min-width: 0; padding: 8dp 14dp; overflow-y: auto; }
+.ca-line { display: flex; align-items: center; margin-bottom: 6dp; }
+.ca-line .swatch { flex: 0 0 auto; margin-right: 6dp; }
+.ca-block { flex: 0 0 auto; margin-right: 10dp; color: #e0e0e0; }
+.ca-field { flex: 0 0 auto; width: 76dp; font-size: 11dp; color: #8a8d93; }
+.ca-drop { flex: 1 1 0px; display: flex; padding: 3dp 8dp; background-color: #2f3035; border-radius: 3dp; cursor: pointer;
+           white-space: nowrap; overflow: hidden; }
+.ca-drop:hover { background-color: #383a40; }
+.ca-drop.small { flex: 0 0 auto; width: 180dp; }
+.ca-prop { display: flex; align-items: center; margin-top: 8dp; font-size: 13dp; }
+.ca-prop-name { flex: 1 1 auto; color: #e8c040; }
+.ca-prop-value { flex: 0 0 auto; margin-right: 6dp; color: #e0e0e0; }
+input.slider.ca-slider { display: block; width: 100%; margin-top: 3dp; }
+input.ca-label { width: 220dp; }
+/* Command Center grid (HX Edit's layout). */
+.cc-grid-wrap { flex: 0 0 auto; width: 420dp; padding: 8dp 10dp; border-right: 1dp #111214; overflow-y: auto; }
+.cc-snap { margin: 0 0 8dp 0; font-size: 12dp; color: #8a8d93; }
+.cc-grid-row { display: flex; }
+.cc-cell { flex: 0 0 auto; width: 62dp; height: 56dp; margin: 0 2dp 2dp 0; padding: 4dp 3dp; background-color: #1b1c1f;
+           border: 1dp #26272b; cursor: pointer; text-align: center; }
+.cc-cell:hover { background-color: #26272b; }
+.cc-cell.selected { background-color: #3a3c41; border-color: #00b8b8; }
+.cc-cell.instant .cc-name { color: #e8c040; }
+.cc-name { font-size: 12dp; color: #c8c8c8; white-space: nowrap; overflow: hidden; }
+.cc-type { margin-top: 6dp; font-size: 10dp; color: #6b6e74; white-space: nowrap; overflow: hidden; }
+.cc-cell.set .cc-type { color: #00e5ff; }
+.swatch.cat-none { background-color: #8a8d93; }
+
+/* Signal flow */
+.flow {
+    flex: 0 0 auto;
+    padding: 8dp 12dp;
+    background-color: #111214;
+    border-bottom: 1dp #2a2b2f;
+}
+.lane { display: flex; align-items: center; height: 60dp; }
+.lane-label { width: 26dp; font-size: 11dp; color: #6b6e74; }
+.lane-track { flex: 1 1 0px; display: flex; position: relative; height: 60dp; }
+.lane-line {
+    position: absolute;
+    left: 5%;
+    right: 5%;
+    top: 16dp;   /* centre 17dp = cell padding 4dp + half a 26dp node */
+    height: 2dp;
+    background-color: #5a5d63;
+}
+/* Split / merge connectors, drawn in lane B's track (its line at 16-18dp; lane A's at -44..-42dp, one 60dp
+   lane up; the sideways run at -6..-4dp, just below lane A's labels). Four rounded corners, as in Helix Native:
+   - .bend.upper at lane A's end: top border on lane A's line, its vertical border, bottom border into the run;
+   - .run: the straight sideways part, between the two corner boxes, never under a curve;
+   - .bend.lower at lane B's end: top border from the run, its vertical border, bottom border on lane B's line
+     (which is trimmed by one radius there, .trim-l / .trim-r, so it doesn't run under the curve).
+   A corner box is one radius (10dp) wide on the side facing the run: .r = vertical border on its right, the box
+   reaching left of its x; .l = vertical border on its left, reaching right. Margins centre the 2dp vertical on x.
+   .straight = both ends at one x: a vertical from lane A's line down to one radius above lane B's, then .bend.corner
+   (one rounded corner: vertical border, bottom border on lane B's line) turns into lane B's trimmed line. */
+.bend { position: absolute; width: 10dp; border-color: #5a5d63; }
+.bend.upper { top: -44dp; height: 36dp; border-top-width: 2dp; border-bottom-width: 2dp; }
+.bend.lower { top: -6dp; height: 20dp; border-top-width: 2dp; border-bottom-width: 2dp; }
+.bend.r { margin-left: -11dp; border-right-width: 2dp; border-top-right-radius: 10dp; border-bottom-right-radius: 10dp; }
+.bend.l { margin-left: -1dp; border-left-width: 2dp; border-top-left-radius: 10dp; border-bottom-left-radius: 10dp; }
+/* Straight connector's foot: 6..16dp plus its bottom border on lane B's line (16-18dp); only the lower corner rounds. */
+.bend.corner { top: 6dp; height: 10dp; border-top-width: 0; border-bottom-width: 2dp; }
+.bend.corner.r { border-top-right-radius: 0; }
+.bend.corner.l { border-top-left-radius: 0; }
+.run { position: absolute; top: -6dp; height: 2dp; margin-left: 11dp; margin-right: 11dp; background-color: #5a5d63; }
+.straight { position: absolute; top: -44dp; height: 50dp; width: 2dp; margin-left: -1dp; background-color: #5a5d63; }
+.lane-line.trim-l { margin-left: 11dp; }
+.lane-line.trim-r { margin-right: 11dp; }
+/* Grey preview of lane B on a serial path while a block / model is dragged (UiLane::ghost): its line and connectors. */
+.lane.ghost .lane-line, .lane.ghost .bend, .lane.ghost .run, .lane.ghost .straight { opacity: 0.35; }
+.lane.ghost .junction { display: none; }
+.flow.dragging .lane.ghost .cell.empty .node { border-color: #34363b; }
+/* Split / merge dot, centred on lane A's line (17dp centre, one 60dp lane up). */
+.junction {
+    position: absolute;
+    top: -50dp;  /* lane A line centre -43dp, minus half the dot */
+    width: 14dp;
+    height: 14dp;
+    margin-left: -7dp;
+    box-sizing: border-box;
+    border-radius: 7dp;
+    border: 2dp #8a8d93;
+    background-color: #1f2023;
+    cursor: pointer;
+    z-index: 2;
+    drag: drag;  /* drag events on the dot itself, no copy: it follows the gap under the pointer */
+}
+.junction:hover { border-color: #c8c8c8; }
+.junction.selected { border-color: #ffffff; background-color: #3a3c41; }
+.cell.io.hidden .node { border-color: transparent; background-color: transparent; }
+
+.cell {
+    position: relative;  /* stack above the absolutely positioned lane line, so presses reach the blocks */
+    flex: 1 1 0px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 4dp;
+    cursor: pointer;
+}
+.grip { width: 56dp; display: flex; flex-direction: column; align-items: center; }
+.node {
+    position: relative;      /* anchors the icon */
+    box-sizing: border-box;  /* 26dp including the border, so the centre lines up with the lane line */
+    width: 26dp;
+    height: 26dp;
+    border-radius: 4dp;
+    border: 2dp transparent;
+}
+.cell.io .node { border-radius: 13dp; border-color: #c8c8c8; background-color: #2a2b2f; }
+.cell.io { cursor: pointer; }
+.cell.io.hidden { cursor: default; }
+.cell.io.selected .node { border-color: #ffffff; }
+/* Drag sources: RmlUi drags a copy placed at the source's left edge with its content width, so drag
+   the fixed-width grip (node + label), not the wide cell whose centred content would jump left. The
+   events bubble to the cell. The cell under the copy gets .droptarget (dragover/dragout events). */
+.cell.block .grip, .model-row { drag: clone; }
+/* Lane B's own input / output node: drag it onto lane A to turn it back into a split / merge. */
+.cell.dragio .grip { drag: drag; cursor: move; }
+.model-row:drag { background-color: #3a3c41; color: #ffffff; padding: 3dp 10dp; }
+/* Empty slots keep the same 26dp box as every node (only colours change), so an outline drawn
+   on one sits exactly on the lane line. Hidden until hovered, selected or targeted by a drop. */
+.cell.empty .node { border-color: transparent; background-color: transparent; }
+.cell.empty:hover .node { border-color: #4a4c52; }
+/* An unused lane B (serial path) shows no hover boxes; it still lights up as a drop target. */
+.lane.idle .cell.empty:hover .node { border-color: transparent; }
+.cell.empty.selected .node { border-color: #ffffff; background-color: #2a2b2f; }
+/* Stronger than the idle-lane hover rule above and the drag outline: during a drag the target is also hovered. */
+.cell.empty.droptarget .node, .lane.idle .cell.empty.droptarget:hover .node,
+.flow.dragging .lane.idle .cell.empty.droptarget .node { border-color: #ffffff; }
+.cell.block .node { background-color: #1f2023; }
+.cell.bypassed .node { opacity: 0.35; }
+.cell.bypassed .cell-label { opacity: 0.45; }
+.cell-label { margin-top: 2dp; font-size: 11dp; color: #a8a8a8; }
+
+/* Edit area */
+.edit-tabs { flex: 0 0 auto; display: flex; background-color: #26272b; }
+.edit-tab {
+    flex: 1 1 0px;
+    text-align: center;
+    padding: 5dp 0;
+    font-size: 12dp;
+    font-weight: bold;
+    color: #8a8d93;
+    cursor: pointer;
+}
+.edit-tab:hover { color: #c8c8c8; }
+.edit-tab.active { color: #ffffff; background-color: #3a3c41; }
+.edit-tab.disabled { color: #55585e; }
+
+.edit { flex: 1 1 0px; display: flex; flex-direction: row; min-height: 0; }
+.col { display: flex; flex-direction: column; min-height: 0; border-right: 1dp #111214; }
+.categories { flex: 0 0 auto; width: 170dp; background-color: #1b1c1f; }
+.cat-row { display: flex; align-items: center; padding: 3dp 10dp; cursor: pointer; }
+.cat-row:hover { background-color: #2a2b2f; }
+.cat-row.selected { background-color: #3a3c41; }
+.cat-row.disabled { opacity: 0.35; cursor: default; }
+.swatch { width: 12dp; height: 12dp; border-radius: 3dp; margin-right: 8dp; }
+
+.models { flex: 0 0 auto; width: 230dp; background-color: #1b1c1f; }
+.model-row { padding: 3dp 10dp; cursor: pointer; }
+.model-row:hover { background-color: #2a2b2f; }
+.model-row.selected { background-color: #3a3c41; color: #ffffff; }
+/* Doesn't fit in the path's DSP: shown, but can't be picked. */
+.model-row.disabled { opacity: 0.35; cursor: default; }
+.model-row.disabled:hover { background-color: transparent; }
+
+.params { flex: 1 1 0px; border-right: 0; background-color: #1b1c1f; }
+.params-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 5dp 12dp;
+    background-color: #2f3035;
+    border-bottom: 1dp #111214;
+}
+.block-title { flex: 1 1 auto; color: #ffffff; }
+.power {
+    padding: 1dp 8dp;
+    border-radius: 3dp;
+    font-size: 11dp;
+    font-weight: bold;
+    background-color: #3a3c41;
+    color: #8a8d93;
+    cursor: pointer;
+}
+.power.on { background-color: #2f74c0; color: #ffffff; }
+.hint { flex: 0 0 auto; padding: 10dp 12dp; color: #8a8d93; }
+.param-list { padding: 4dp 12dp; }
+.param { padding: 4dp 0; }
+.param-top { display: flex; }
+.param-name { font-size: 13dp; }
+.param-value { font-size: 13dp; }
+
+/* Parameter bars as in Helix Native: a dark rounded track, a fill in a mid shade of the category colour (from the
+   left, or from the middle for pan / balance), and the handle in the full colour, rounded like the buttons.
+   Track and fill are our own divs under the range input, whose own track is see-through. */
+.bar { position: relative; height: 14dp; margin-top: 2dp; }
+.bar-track, .bar-fill { position: absolute; top: 3dp; height: 8dp; border-radius: 3dp; }
+.bar-track { left: 0; right: 0; background-color: #2f3134; }
+.bar-fill { background-color: #606469; }
+input.slider { display: block; position: relative; width: 100%; height: 14dp; }
+input.slider slidertrack { height: 8dp; margin-top: 3dp; background-color: transparent; }
+input.slider sliderbar { width: 12dp; height: 14dp; border-radius: 3dp; background-color: #c8c8c8; }
+input.slider sliderarrowdec, input.slider sliderarrowinc { width: 0; height: 0; }
+
+scrollbarvertical { width: 10dp; }
+scrollbarvertical slidertrack { background-color: #1b1c1f; }
+scrollbarvertical sliderbar { background-color: #4a4d53; border-radius: 4dp; min-height: 20dp; }
+scrollbarvertical sliderbar:hover { background-color: #5c6067; }
+scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc { width: 0; height: 0; }
+
+/* ---------------------------------------------------------------- category colours (generated) */
+/* From the unit's own block icons (dominant colour of each category's icon in rec 9, v3.80); the dark shade is
+   that colour at 28% over the background, for node boxes and slider tracks. */
+.cat-0.cat-text, .cat-0.cell-label, .cat-0.block-title, .param-list.cat-0 .param-name, .param-list.cat-0 .param-value { color: #9aa0a6; }
+.cat-0.swatch { background-color: #9aa0a6; }
+.cell.block .node.cat-0, .grip:drag .node.cat-0 { border-color: #9aa0a6; background-color: #36383b; }
+.param-list.cat-0 input.slider slidertrack { background-color: #36383b; }
+.param-list.cat-0 input.slider sliderbar { background-color: #9aa0a6; }
+.cat-1.cat-text, .cat-1.cell-label, .cat-1.block-title, .param-list.cat-1 .param-name, .param-list.cat-1 .param-value { color: #9aa0a6; }
+.cat-1.swatch { background-color: #9aa0a6; }
+.cell.block .node.cat-1, .grip:drag .node.cat-1 { border-color: #9aa0a6; background-color: #36383b; }
+.param-list.cat-1 input.slider slidertrack { background-color: #36383b; }
+.param-list.cat-1 input.slider sliderbar { background-color: #9aa0a6; }
+.cat-2.cat-text, .cat-2.cell-label, .cat-2.block-title, .param-list.cat-2 .param-name, .param-list.cat-2 .param-value { color: #f69420; }
+.cat-2.swatch { background-color: #f69420; }
+.cell.block .node.cat-2, .grip:drag .node.cat-2 { border-color: #f69420; background-color: #503415; }
+.param-list.cat-2 input.slider slidertrack { background-color: #503415; }
+.param-list.cat-2 input.slider sliderbar { background-color: #f69420; }
+.cat-3.cat-text, .cat-3.cell-label, .cat-3.block-title, .param-list.cat-3 .param-name, .param-list.cat-3 .param-value { color: #e6d531; }
+.cat-3.swatch { background-color: #e6d531; }
+.cell.block .node.cat-3, .grip:drag .node.cat-3 { border-color: #e6d531; background-color: #4b471a; }
+.param-list.cat-3 input.slider slidertrack { background-color: #4b471a; }
+.param-list.cat-3 input.slider sliderbar { background-color: #e6d531; }
+.cat-4.cat-text, .cat-4.cell-label, .cat-4.block-title, .param-list.cat-4 .param-name, .param-list.cat-4 .param-value { color: #e6d531; }
+.cat-4.swatch { background-color: #e6d531; }
+.cell.block .node.cat-4, .grip:drag .node.cat-4 { border-color: #e6d531; background-color: #4b471a; }
+.param-list.cat-4 input.slider slidertrack { background-color: #4b471a; }
+.param-list.cat-4 input.slider sliderbar { background-color: #e6d531; }
+.cat-5.cat-text, .cat-5.cell-label, .cat-5.block-title, .param-list.cat-5 .param-name, .param-list.cat-5 .param-value { color: #0094e6; }
+.cat-5.swatch { background-color: #0094e6; }
+.cell.block .node.cat-5, .grip:drag .node.cat-5 { border-color: #0094e6; background-color: #0b344d; }
+.param-list.cat-5 input.slider slidertrack { background-color: #0b344d; }
+.param-list.cat-5 input.slider sliderbar { background-color: #0094e6; }
+.cat-6.cat-text, .cat-6.cell-label, .cat-6.block-title, .param-list.cat-6 .param-name, .param-list.cat-6 .param-value { color: #41ff41; }
+.cat-6.swatch { background-color: #41ff41; }
+.cell.block .node.cat-6, .grip:drag .node.cat-6 { border-color: #41ff41; background-color: #1d521e; }
+.param-list.cat-6 input.slider slidertrack { background-color: #1d521e; }
+.param-list.cat-6 input.slider sliderbar { background-color: #41ff41; }
+.cat-7.cat-text, .cat-7.cell-label, .cat-7.block-title, .param-list.cat-7 .param-name, .param-list.cat-7 .param-value { color: #ff5a18; }
+.cat-7.swatch { background-color: #ff5a18; }
+.cell.block .node.cat-7, .grip:drag .node.cat-7 { border-color: #ff5a18; background-color: #522413; }
+.param-list.cat-7 input.slider slidertrack { background-color: #522413; }
+.param-list.cat-7 input.slider sliderbar { background-color: #ff5a18; }
+.cat-8.cat-text, .cat-8.cell-label, .cat-8.block-title, .param-list.cat-8 .param-name, .param-list.cat-8 .param-value { color: #ac4ade; }
+.cat-8.swatch { background-color: #ac4ade; }
+.cell.block .node.cat-8, .grip:drag .node.cat-8 { border-color: #ac4ade; background-color: #3b204a; }
+.param-list.cat-8 input.slider slidertrack { background-color: #3b204a; }
+.param-list.cat-8 input.slider sliderbar { background-color: #ac4ade; }
+.cat-9.cat-text, .cat-9.cell-label, .cat-9.block-title, .param-list.cat-9 .param-name, .param-list.cat-9 .param-value { color: #ac4ade; }
+.cat-9.swatch { background-color: #ac4ade; }
+.cell.block .node.cat-9, .grip:drag .node.cat-9 { border-color: #ac4ade; background-color: #3b204a; }
+.param-list.cat-9 input.slider slidertrack { background-color: #3b204a; }
+.param-list.cat-9 input.slider sliderbar { background-color: #ac4ade; }
+.cat-10.cat-text, .cat-10.cell-label, .cat-10.block-title, .param-list.cat-10 .param-name, .param-list.cat-10 .param-value { color: #ac4ade; }
+.cat-10.swatch { background-color: #ac4ade; }
+.cell.block .node.cat-10, .grip:drag .node.cat-10 { border-color: #ac4ade; background-color: #3b204a; }
+.param-list.cat-10 input.slider slidertrack { background-color: #3b204a; }
+.param-list.cat-10 input.slider sliderbar { background-color: #ac4ade; }
+.cat-11.cat-text, .cat-11.cell-label, .cat-11.block-title, .param-list.cat-11 .param-name, .param-list.cat-11 .param-value { color: #ee1820; }
+.cat-11.swatch { background-color: #ee1820; }
+.cell.block .node.cat-11, .grip:drag .node.cat-11 { border-color: #ee1820; background-color: #4d1215; }
+.param-list.cat-11 input.slider slidertrack { background-color: #4d1215; }
+.param-list.cat-11 input.slider sliderbar { background-color: #ee1820; }
+.cat-12.cat-text, .cat-12.cell-label, .cat-12.block-title, .param-list.cat-12 .param-name, .param-list.cat-12 .param-value { color: #ee1820; }
+.cat-12.swatch { background-color: #ee1820; }
+.cell.block .node.cat-12, .grip:drag .node.cat-12 { border-color: #ee1820; background-color: #4d1215; }
+.param-list.cat-12 input.slider slidertrack { background-color: #4d1215; }
+.param-list.cat-12 input.slider sliderbar { background-color: #ee1820; }
+.cat-13.cat-text, .cat-13.cell-label, .cat-13.block-title, .param-list.cat-13 .param-name, .param-list.cat-13 .param-value { color: #ee1820; }
+.cat-13.swatch { background-color: #ee1820; }
+.cell.block .node.cat-13, .grip:drag .node.cat-13 { border-color: #ee1820; background-color: #4d1215; }
+.param-list.cat-13 input.slider slidertrack { background-color: #4d1215; }
+.param-list.cat-13 input.slider sliderbar { background-color: #ee1820; }
+.cat-14.cat-text, .cat-14.cell-label, .cat-14.block-title, .param-list.cat-14 .param-name, .param-list.cat-14 .param-value { color: #cd0000; }
+.cat-14.swatch { background-color: #cd0000; }
+.cell.block .node.cat-14, .grip:drag .node.cat-14 { border-color: #cd0000; background-color: #440b0c; }
+.param-list.cat-14 input.slider slidertrack { background-color: #440b0c; }
+.param-list.cat-14 input.slider sliderbar { background-color: #cd0000; }
+.cat-15.cat-text, .cat-15.cell-label, .cat-15.block-title, .param-list.cat-15 .param-name, .param-list.cat-15 .param-value { color: #ee3194; }
+.cat-15.swatch { background-color: #ee3194; }
+.cell.block .node.cat-15, .grip:drag .node.cat-15 { border-color: #ee3194; background-color: #4d1936; }
+.param-list.cat-15 input.slider slidertrack { background-color: #4d1936; }
+.param-list.cat-15 input.slider sliderbar { background-color: #ee3194; }
+.cat-16.cat-text, .cat-16.cell-label, .cat-16.block-title, .param-list.cat-16 .param-name, .param-list.cat-16 .param-value { color: #41bdb4; }
+.cat-16.swatch { background-color: #41bdb4; }
+.cell.block .node.cat-16, .grip:drag .node.cat-16 { border-color: #41bdb4; background-color: #1d403f; }
+.param-list.cat-16 input.slider slidertrack { background-color: #1d403f; }
+.param-list.cat-16 input.slider sliderbar { background-color: #41bdb4; }
+.cat-17.cat-text, .cat-17.cell-label, .cat-17.block-title, .param-list.cat-17 .param-name, .param-list.cat-17 .param-value { color: #10ffff; }
+.cat-17.swatch { background-color: #10ffff; }
+.cell.block .node.cat-17, .grip:drag .node.cat-17 { border-color: #10ffff; background-color: #0f5254; }
+.param-list.cat-17 input.slider slidertrack { background-color: #0f5254; }
+.param-list.cat-17 input.slider sliderbar { background-color: #10ffff; }
+.cat-18.cat-text, .cat-18.cell-label, .cat-18.block-title, .param-list.cat-18 .param-name, .param-list.cat-18 .param-value { color: #949494; }
+.cat-18.swatch { background-color: #949494; }
+.cell.block .node.cat-18, .grip:drag .node.cat-18 { border-color: #949494; background-color: #343436; }
+.param-list.cat-18 input.slider slidertrack { background-color: #343436; }
+.param-list.cat-18 input.slider sliderbar { background-color: #949494; }
+/* 19: our Custom category (mod builds; the base package's colour 0x00e5ff / dim 0x005c66) */
+.cat-19.cat-text, .cat-19.cell-label, .cat-19.block-title, .param-list.cat-19 .param-name, .param-list.cat-19 .param-value { color: #00e5ff; }
+.cat-19.swatch { background-color: #00e5ff; }
+.cell.block .node.cat-19, .grip:drag .node.cat-19 { border-color: #00e5ff; background-color: #005c66; }
+.param-list.cat-19 input.slider slidertrack { background-color: #005c66; }
+.param-list.cat-19 input.slider sliderbar { background-color: #00e5ff; }
+
+/* ---------------------------------------------------------------- flash page */
+.options { margin: 8dp 0 4dp 0; }
+.toggle { display: flex; align-items: center; padding: 4dp 0; cursor: pointer; }
+.toggle .box {
+    display: block;
+    width: 12dp;
+    height: 12dp;
+    margin-right: 8dp;
+    border: 1dp #6b6e74;
+    border-radius: 2dp;
+}
+.toggle.on .box { background-color: #2f74c0; border-color: #2f74c0; }
+.toggle:hover { color: #ffffff; }
+.seg {
+    flex: 0 0 auto;
+    padding: 2dp 10dp;
+    margin-right: 2dp;
+    background-color: #2a2b2f;
+    color: #a9acb2;
+    cursor: pointer;
+}
+.seg.on { background-color: #2f74c0; color: #ffffff; }
+.presets-why { margin-left: 10dp; color: #8a8d93; }
+.rec-plan { flex: 0 0 auto; width: 150dp; color: #a9acb2; }
+.rec-row.skip { color: #6b6e74; }
+.rec-row.skip .rec-plan { color: #6b6e74; }
+.rec-row.done .rec-checks { color: #6fcf7f; }
+.rec-checks { display: flex; align-items: center; }
+.mini-bar { flex: 0 0 auto; width: 80dp; height: 6dp; margin-right: 8dp; background-color: #2a2b2f; }
+.mini-fill { height: 6dp; background-color: #2f74c0; }
+.rec-row.done .mini-fill { background-color: #3f9f55; }
+.summary { margin-top: 8dp; color: #d8d8d8; }
+.actions { display: flex; align-items: center; margin-top: 12dp; }
+.actions .button { margin-right: 8dp; }
+.button.danger { background-color: #9c2f2a; }
+.button.danger:hover { background-color: #b93a33; }
+.button.quiet { background-color: transparent; color: #8a8d93; }
+.button.quiet:hover { color: #ffffff; background-color: #2a2b2f; }
+.button.disabled { opacity: 0.4; }
+.confirm, .progress, .recovery {
+    margin-top: 14dp;
+    padding: 12dp 14dp;
+    background-color: #24252a;
+    border: 1dp #3a3c41;
+    border-radius: 4dp;
+}
+.confirm { border-color: #9c2f2a; }
+.recovery { border-color: #ffaa55; }
+.confirm-title, .progress-title { font-weight: bold; color: #ffffff; margin-bottom: 6dp; }
+.big-bar { height: 14dp; background-color: #16171a; border-radius: 3dp; }
+.big-fill { height: 14dp; background-color: #2f74c0; border-radius: 3dp; }
+.big-fill.failed { background-color: #9c2f2a; }
+.progress-text { margin-top: 6dp; color: #a9acb2; font-size: 13dp; }
+.ok-text { margin-top: 8dp; color: #6fcf7f; }
+.log-line { font-size: 12dp; color: #8a8d93; padding: 1dp 0; }
+
+/* ---------------------------------------------------------------- mods page (marketplace) */
+.mods-signed { margin: 4dp 0; font-size: 12dp; color: #6fcf7f; }
+.mods-signed.unsigned { color: #ffaa55; }
+.mods-list { max-width: 900dp; margin: 10dp 0; }
+.mods-row { display: flex; align-items: center; padding: 5dp 6dp; border-radius: 3dp; cursor: pointer; }
+.mods-row:hover { background-color: #222327; }
+.mods-row.on { background-color: #1f2b3a; }
+.mods-row.always { cursor: default; }
+.mods-head { color: #8a8d93; font-size: 12dp; font-weight: bold; cursor: default; }
+.mods-head:hover { background-color: transparent; }
+.mods-check { flex: 0 0 auto; width: 26dp; }
+.mods-check .box { display: block; width: 12dp; height: 12dp; border: 1dp #6b6e74; border-radius: 2dp; }
+.mods-row.on .mods-check .box { background-color: #2f74c0; border-color: #2f74c0; }
+.mods-name { flex: 1 1 auto; }
+.mods-needs { font-size: 11dp; color: #6b6e74; }
+.mods-ver, .mods-slot { flex: 0 0 auto; width: 70dp; color: #a9acb2; }
+.mods-size { flex: 0 0 auto; width: 90dp; color: #a9acb2; }
+.mods-state { flex: 0 0 auto; width: 120dp; color: #8a8d93; }
+.mods-state.ok { color: #6fcf7f; }
+.mods-progress { max-width: 900dp; margin-top: 14dp; }
+/* Build report: a fixed-height text box (textarea.mon-box, as the USB log) that scrolls on its own. */
+.mods-report-bar { display: flex; align-items: center; max-width: 900dp; margin: 14dp 0 6dp 0; }
+.mods-report-bar.off, .mods-report-wrap.off { display: none; }
+.mods-report-title { font-size: 13dp; font-weight: bold; color: #e0e0e0; }
+.mods-report-wrap { position: relative; max-width: 900dp; height: 380dp; margin-bottom: 10dp; }
+
+/* ---------------------------------------------------------------- monitor page */
+.mon-bar { flex: 0 0 auto; display: flex; align-items: center; padding: 10dp 20dp 6dp 20dp; }
+.mon-bar .button { margin-left: 8dp; flex: 0 0 auto; }
+.mon-bar .button:first-child { margin-left: 0; }
+.mon-bar .toggle { margin-left: 16dp; flex: 0 0 auto; }
+.mon-bar .hint { font-size: 12dp; color: #6b6e74; }
+.button.primary { background-color: #2f74c0; color: #ffffff; }
+.mon-ports { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; padding: 0 20dp 6dp 20dp; font-size: 12dp; }
+.mon-port { margin-right: 14dp; color: #a9acb2; }
+.mon-list { padding: 4dp 20dp 12dp 20dp; }
+/* USB log: a text box (selectable). The wrap fills the space left; the box fills the wrap. */
+.mon-box-wrap { flex: 1 1 0px; position: relative; min-height: 0; margin: 0 20dp 12dp 20dp; }
+/* A textarea has an intrinsic size (rows / cols): offsets alone don't stretch it, an explicit 100% does. */
+textarea.mon-box {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 6dp 8dp;
+    border-radius: 4dp;
+    background-color: #151619;
+    border: 1dp #2f3035;
+    color: #a9acb2;
+    font-size: 12dp;
+    line-height: 16dp;
+    white-space: pre;
+    overflow: auto;
+    cursor: text;
+}
+textarea.mon-box:focus { border-color: #2f74c0; }
+textarea.mon-box selection { background-color: #2f74c0; color: #ffffff; }
+textarea.mon-box scrollbarhorizontal { height: 10dp; }
+textarea.mon-box scrollbarhorizontal slidertrack { background-color: #1b1c1f; }
+textarea.mon-box scrollbarhorizontal sliderbar { background-color: #4a4d53; border-radius: 4dp; min-width: 20dp; }
+/* MIDI port dropdown. RmlUi draws nothing for a select by itself: value box, arrow and list are styled here. */
+select.mon-port-select {
+    flex: 0 0 auto;
+    width: 260dp;
+    height: 22dp;
+    margin-right: 10dp;
+    padding: 2dp 24dp 2dp 8dp;
+    border-radius: 3dp;
+    background-color: #151619;
+    border: 1dp #3a3c41;
+    color: #ffffff;
+    font-size: 13dp;
+    cursor: pointer;
+}
+select.mon-port-select:hover { border-color: #4b4f56; }
+select.mon-port-select selectvalue { height: 18dp; white-space: nowrap; overflow: hidden; }
+select.mon-port-select selectarrow {
+    width: 0;
+    height: 0;
+    margin-top: 8dp;
+    margin-right: 8dp;
+    border-width: 5dp 4dp 0 4dp;
+    border-color: #a9acb2 transparent transparent transparent;
+}
+select.mon-port-select selectbox {
+    margin-top: 2dp;
+    padding: 3dp 0;
+    background-color: #222327;
+    border: 1dp #3a3c41;
+    border-radius: 3dp;
+}
+select.mon-port-select selectbox option { padding: 3dp 8dp; color: #d8d8d8; }
+select.mon-port-select selectbox option:hover { background-color: #2f74c0; color: #ffffff; }
+select.mon-port-select selectbox option:checked { color: #6fcf7f; }
+.mon-row:hover { background-color: #222327; }
+.mon-row { display: flex; font-size: 12dp; color: #a9acb2; padding: 1dp 0; }
+.mon-row.debug { color: #6fcf7f; }
+.mon-time { flex: 0 0 auto; width: 80dp; color: #6b6e74; }
+.mon-port-name { flex: 0 0 auto; width: 200dp; color: #6b6e74; white-space: nowrap; overflow: hidden; }
+/* The four debug words as tiles above the message list. */
+.mon-words { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: flex-end; padding: 4dp 20dp 8dp 20dp; border-bottom: 1dp #2f3035; }
+.mon-word {
+    flex: 0 0 auto;
+    width: 150dp;
+    margin-right: 8dp;
+    padding: 6dp 10dp;
+    border-radius: 5dp;
+    border-width: 1dp;
+    border-color: #3d6b47;
+    background-color: #1f2b22;
+}
+.mon-word.off { border-color: #34363b; background-color: #1d1e21; }
+.mon-word-name { font-size: 11dp; font-weight: bold; color: #6fcf7f; }
+.mon-word.off .mon-word-name { color: #6b6e74; }
+.mon-word-value { font-size: 20dp; font-weight: bold; color: #ffffff; }
+.mon-word.off .mon-word-value { color: #6b6e74; }
+.mon-word-sub { font-size: 11dp; color: #8a8d93; }
+.mon-words-hint { flex: 1 1 200dp; margin: 0 0 4dp 8dp; font-size: 12dp; color: #6b6e74; }
+
+/* ---------------------------------------------------------------- firmware icons */
+/* Block icons from the user's firmware (rec 8/9), frame included, as Helix Native draws them: grey frame,
+   white for the selected block (the icon's own Sel variant), dimmed when bypassed (Off). Drawn over the 26dp
+   node box and centred on it so the lane line still runs through the middle. The icon's black is see-through,
+   so a dark fill behind it stops the lane line at the frame; the selected block's fill is its category's dark
+   shade, as in Native. */
+.node-icon {
+    position: absolute;
+    left: -6dp;              /* 34dp centred on the 26dp box (inside its 2dp border) */
+    top: -6dp;
+    width: 34dp;
+    height: 34dp;
+    border-radius: 5dp;      /* keeps the fill inside the frame's rounded corners */
+    background-color: #111214;
+}
+.node.has-icon { border-color: transparent; background-color: transparent; }
+.cell.bypassed .node.has-icon { opacity: 1; }
+.lane .cell.block.selected .grip .node.has-icon, .lane .cell.block.droptarget .grip .node.has-icon,
+.grip:drag .node.has-icon { border-color: transparent; background-color: transparent; }
+/* Input / output nodes with the unit's Block_In* / Block_Out* image (36x38 px, round): no circle of ours under it. */
+.cell.io .node.has-icon { border-color: transparent; background-color: transparent; }
+.cell.io .node-icon { left: -4dp; top: -5dp; width: 30dp; height: 32dp; border-radius: 16dp; }
+/* Path 2A / 2B / 2A+B outputs: 36x66 (circle + arrow down), kept at their own ratio; the circle sits where the
+   round ones do and the arrow hangs below. */
+.cell.io .node-icon.tall { height: 55dp; border-radius: 0; background-color: transparent; }
+/* Drop target while dragging: a lighter fill behind the icon. */
+.cell.block.droptarget .node-icon { background-color: #3a3c41; }
+/* Selected block: its category's dark shade behind the icon. */
+.cell.block.selected .node.cat-0 .node-icon { background-color: #36383b; }
+.cell.block.selected .node.cat-1 .node-icon { background-color: #36383b; }
+.cell.block.selected .node.cat-2 .node-icon { background-color: #503415; }
+.cell.block.selected .node.cat-3 .node-icon { background-color: #4b471a; }
+.cell.block.selected .node.cat-4 .node-icon { background-color: #4b471a; }
+.cell.block.selected .node.cat-5 .node-icon { background-color: #0b344d; }
+.cell.block.selected .node.cat-6 .node-icon { background-color: #1d521e; }
+.cell.block.selected .node.cat-7 .node-icon { background-color: #522413; }
+.cell.block.selected .node.cat-8 .node-icon { background-color: #3b204a; }
+.cell.block.selected .node.cat-9 .node-icon { background-color: #3b204a; }
+.cell.block.selected .node.cat-10 .node-icon { background-color: #3b204a; }
+.cell.block.selected .node.cat-11 .node-icon { background-color: #4d1215; }
+.cell.block.selected .node.cat-12 .node-icon { background-color: #4d1215; }
+.cell.block.selected .node.cat-13 .node-icon { background-color: #4d1215; }
+.cell.block.selected .node.cat-14 .node-icon { background-color: #440b0c; }
+.cell.block.selected .node.cat-15 .node-icon { background-color: #4d1936; }
+.cell.block.selected .node.cat-16 .node-icon { background-color: #1d403f; }
+.cell.block.selected .node.cat-17 .node-icon { background-color: #0f5254; }
+.cell.block.selected .node.cat-18 .node-icon { background-color: #343436; }
+.cell.block.selected .node.cat-19 .node-icon { background-color: #005c66; }
+.cat-icon { flex: 0 0 auto; width: 24dp; height: 24dp; margin-right: 6dp; }
+
+/* ---------------------------------------------------------------- parameter bars per category */
+/* Track: the category colour at 16% over the background (darker than the old track); fill: at 55%, between the
+   track and the handle's full colour. The range input's own track stays see-through (beats the generated
+   slidertrack rules above: same specificity, later). */
+.scroll.param-list input.slider slidertrack { background-color: transparent; }
+.param-list.cat-0 .bar-track { background-color: #2f3134; } .param-list.cat-0 .bar-fill { background-color: #606469; }
+.param-list.cat-1 .bar-track { background-color: #2f3134; } .param-list.cat-1 .bar-fill { background-color: #606469; }
+.param-list.cat-2 .bar-track { background-color: #3e2f1f; } .param-list.cat-2 .bar-fill { background-color: #935e1f; }
+.param-list.cat-3 .bar-track { background-color: #3b3921; } .param-list.cat-3 .bar-fill { background-color: #8a8128; }
+.param-list.cat-4 .bar-track { background-color: #3b3921; } .param-list.cat-4 .bar-fill { background-color: #8a8128; }
+.param-list.cat-5 .bar-track { background-color: #162f3e; } .param-list.cat-5 .bar-fill { background-color: #0c5e8c; }
+.param-list.cat-6 .bar-track { background-color: #214024; } .param-list.cat-6 .bar-fill { background-color: #2f9831; }
+.param-list.cat-7 .bar-track { background-color: #3f251d; } .param-list.cat-7 .bar-fill { background-color: #983e1b; }
+.param-list.cat-8 .bar-track { background-color: #32233d; } .param-list.cat-8 .bar-fill { background-color: #6a3588; }
+.param-list.cat-9 .bar-track { background-color: #32233d; } .param-list.cat-9 .bar-fill { background-color: #6a3588; }
+.param-list.cat-10 .bar-track { background-color: #32233d; } .param-list.cat-10 .bar-fill { background-color: #6a3588; }
+.param-list.cat-11 .bar-track { background-color: #3c1b1f; } .param-list.cat-11 .bar-fill { background-color: #8f191f; }
+.param-list.cat-12 .bar-track { background-color: #3c1b1f; } .param-list.cat-12 .bar-fill { background-color: #8f191f; }
+.param-list.cat-13 .bar-track { background-color: #3c1b1f; } .param-list.cat-13 .bar-fill { background-color: #8f191f; }
+.param-list.cat-14 .bar-track { background-color: #37171a; } .param-list.cat-14 .bar-fill { background-color: #7c0c0d; }
+.param-list.cat-15 .bar-track { background-color: #3c1f31; } .param-list.cat-15 .bar-fill { background-color: #8f275f; }
+.param-list.cat-16 .bar-track { background-color: #213536; } .param-list.cat-16 .bar-fill { background-color: #2f7470; }
+.param-list.cat-17 .bar-track { background-color: #194042; } .param-list.cat-17 .bar-fill { background-color: #14989a; }
+.param-list.cat-18 .bar-track { background-color: #2e2f31; } .param-list.cat-18 .bar-fill { background-color: #5d5e5f; }
+.param-list.cat-19 .bar-track { background-color: #12393f; } .param-list.cat-19 .bar-fill { background-color: #007f8f; }
+
+/* A block whose IR slot holds the wrong kind (an IR block on a NAM capture, the NAM block on an IR). Last in the
+   file: beats the category colours (same specificity). */
+.cell.block .node.ir-warn, .grip:drag .node.ir-warn { border-color: #ff3b30; }
+.ir-warn.cell-label { color: #ff6b5e; }

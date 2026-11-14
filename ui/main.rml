@@ -1,0 +1,1125 @@
+<rml>
+<head>
+    <title>Main</title>
+    <link type="text/rcss" href="theme.rcss"/>
+</head>
+<body data-model="editor">
+    <!-- Tab rail. Icons are Lucide glyphs (codepoints from lucide.css of the pinned version, see
+         frontend/CMakeLists.txt). Collapsed: icons only, the label shows on hover. -->
+    <div class="rail" data-class-closed="!rail_open">
+        <div class="rail-tab toggle" data-event-click="toggle_rail">
+            <span class="icon" data-if="rail_open">&#xe06e;</span><span class="icon" data-if="!rail_open">&#xe06f;</span>
+            <span class="rail-label">{{rail_open ? 'Collapse' : 'Expand'}}</span>
+        </div>
+        <div class="rail-tab" data-class-active="page == 'presets'" data-event-click="pick_page('presets')">
+            <span class="icon">&#xe2e0;</span><span class="rail-label">Presets</span>
+        </div>
+        <div class="rail-tab" data-class-active="page == 'irs'" data-event-click="pick_page('irs')">
+            <span class="icon">&#xe55b;</span><span class="rail-label">IRs</span>
+        </div>
+        <div class="rail-tab" data-class-active="page == 'helix'" data-event-click="pick_page('helix')">
+            <span class="icon">&#xe29a;</span><span class="rail-label">Helix</span>
+        </div>
+        <div class="rail-tab" data-class-active="page == 'firmware'" data-event-click="pick_page('firmware')">
+            <span class="icon">&#xe61a;</span><span class="rail-label">Firmware</span>
+        </div>
+        <div class="rail-tab" data-class-active="page == 'mods'" data-event-click="pick_page('mods')">
+            <span class="icon">&#xe3e4;</span><span class="rail-label">Mods</span>
+        </div>
+        <div class="rail-tab" data-class-active="page == 'monitor'" data-event-click="pick_page('monitor')">
+            <span class="icon">&#xe038;</span><span class="rail-label">Monitor</span>
+        </div>
+        <div class="rail-gap"></div>
+        <div class="rail-tab" data-class-active="page == 'settings'" data-event-click="pick_page('settings')">
+            <span class="icon">&#xe154;</span><span class="rail-label">Settings</span>
+        </div>
+    </div>
+
+    <div class="shell">
+
+    <!-- Pages stay loaded and are hidden with display: none, so lists keep their scroll position. -->
+    <div class="page" data-class-off="page != 'presets'">
+    <div class="welcome" data-if="!loaded">
+        <div>Open your Helix LT firmware (.hxf), or drop it on the window.</div>
+        <div class="button" data-event-click="open_file">Open firmware...</div>
+        <div class="hint">Presets, models and parameters are read from it. Nothing is written.</div>
+    </div>
+
+    <div class="main" data-if="loaded">
+        <!-- Sidebar: setlist and presets -->
+        <div class="sidebar">
+            <div class="tabs"><div class="tab active">Presets</div></div>
+            <div class="section-title">SETLISTS</div>
+            <div class="dropdown">
+                <div class="dropdown-head" data-event-click="toggle_setlist">
+                    <span class="grow">{{setlist_label}}</span><span class="caret">v</span>
+                </div>
+                <div class="dropdown-list" data-if="setlist_open">
+                    <div class="dropdown-item" data-for="s : setlists" data-event-click="pick_setlist(s.index)">{{s.label}}</div>
+                </div>
+            </div>
+            <div class="section-title">PRESETS</div>
+            <div class="fill preset-list">
+                <div class="scroll">
+                    <!-- Drag a row onto another to move the preset there (the ones between shift). -->
+                    <div class="preset" data-for="p : presets" data-class-selected="p.index == preset_sel"
+                         data-class-edited="p.cls == 'edited'" data-event-click="pick_preset(p.index)"
+                         data-event-dblclick="preset_rename_row(p.index)"
+                         data-event-mousedown="preset_menu(p.index)"
+                         data-event-dragstart="drag_preset(p.index)" data-event-dragdrop="drop_preset(p.index)"
+                         data-event-dragend="drag_preset_end">
+                        <span class="pnum">{{p.extra}}</span>
+                        <span class="grow" data-if="!renaming || p.index != rename_index">{{p.label}}</span>
+                        <!-- In-place rename (double-click, F2, right-click > Rename): Enter or clicking away applies,
+                             Esc cancels. Clicks stay in the field (no preset load). -->
+                        <input id="rename-edit" type="text" class="row-rename" maxlength="16"
+                               data-if="renaming && p.index == rename_index" data-value="rename_text"
+                               data-event-keydown="rename_key" data-event-blur="rename_blur"
+                               data-event-click="rename_click" data-event-dblclick="rename_click"/>
+                        <span class="pmark">*</span>
+                    </div>
+                </div>
+            </div>
+            <div class="preset-actions">
+                <div class="button small" data-event-click="preset_copy">Copy preset</div>
+                <div class="button small" data-class-disabled="!has_clip" data-event-click="preset_paste">Paste preset</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Preset bar -->
+            <div class="presetbar">
+                <input type="text" class="preset-name" data-value="preset_name" data-event-change="preset_rename"/>
+                <span class="modified-mark" data-if="preset_modified" title="Changed since loaded or saved">*</span>
+                <div class="button small quiet" data-event-click="undo">Undo</div>
+                <div class="button small quiet" data-event-click="redo">Redo</div>
+                <div class="button small" data-event-click="export_hlx">Export .hlx</div>
+                <div class="button small" data-if="can_send_preset" data-event-click="send_preset">Send to Helix</div>
+                <div class="button small" data-class-disabled="!can_save" data-event-click="save_ask">Save</div>
+                <div class="button small" data-class-disabled="!can_save" data-class-on="save_as_picking"
+                     data-event-click="save_as">Save as...</div>
+                <div class="dsp">
+                    <div class="dsp-label">{{dsp1}}</div>
+                    <div class="dsp-bar"><div class="dsp-fill" data-style-width="dsp1_w"></div></div>
+                </div>
+                <div class="dsp">
+                    <div class="dsp-label">{{dsp2}}</div>
+                    <div class="dsp-bar"><div class="dsp-fill" data-style-width="dsp2_w"></div></div>
+                </div>
+                <!-- The unit's connection (Online / Offline is in Settings). -->
+                <div class="device" data-class-on="connected"><span class="device-dot"></span>{{device_text}}</div>
+            </div>
+
+            <!-- Rename a stored preset (right-click > Rename...). -->
+
+            <!-- Save as: the next click in the preset list picks the slot. -->
+            <div class="savebar pickbar" data-if="save_as_picking">
+                <span class="grow">Save as: click the preset slot to save "{{preset_name}}" to (switch setlists above if
+                    needed). It replaces what's stored there.</span>
+                <div class="button small" data-event-click="save_as">Cancel</div>
+            </div>
+
+            <!-- Save confirmation: nothing is stored on the unit until "Save" here. -->
+            <div class="savebar" data-if="save_asking">
+                <span class="grow">{{save_question}}</span>
+                <div class="button small danger" data-event-click="save_confirm">Save</div>
+                <div class="button small" data-event-click="save_cancel">Cancel</div>
+            </div>
+
+            <!-- Offline: which unit the presets are for. -->
+            <div class="unitbar" data-if="!online">
+                <span class="snap-field">Working offline for</span>
+                <div class="seg" data-for="u : units" data-class-on="u.cls == 'on'" data-class-disabled="!u.enabled"
+                     data-event-click="pick_unit(u.index)">{{u.label}}</div>
+            </div>
+
+            <!-- Snapshots: click to recall (block on/off and the knobs on the Snapshot controller). The row below
+                 edits the selected one: name, colour, tempo, copy / paste. -->
+            <div class="snapbar" data-if="has_snaps">
+                <div class="snap" data-for="s : snapshots" data-class-selected="s.index == snap_sel"
+                     data-event-click="pick_snapshot(s.index)" data-event-mousedown="snap_menu(s.index)">
+                    <span data-attr-class="s.cls"></span><span class="snap-label">{{s.label}}</span>
+                </div>
+            </div>
+            <div class="snapedit" data-if="has_snaps">
+                <span class="snap-field">Name</span>
+                <input type="text" class="snap-name" data-value="snap_name" data-event-change="snap_rename"/>
+                <span class="snap-field">Colour</span>
+                <div class="snap-colours">
+                    <span data-for="c : snap_colours" data-attr-class="c.cls + (c.index == snap_colour ? ' on' : '')"
+                          data-event-click="snap_colour(c.index)"></span>
+                </div>
+                <span class="snap-field">Tempo</span>
+                <input type="text" class="snap-tempo" data-value="snap_tempo" data-event-change="snap_tempo"
+                       data-event-blur="snap_tempo"/>
+                <span class="snap-unit">BPM</span>
+                <div class="grow"></div>
+                <div class="button small" data-event-click="snap_copy">Copy snapshot</div>
+                <div class="button small" data-class-disabled="snap_clip == -1" data-event-click="snap_paste">Paste snapshot</div>
+            </div>
+
+            <!-- Signal flow: 1A, 1B, 2A, 2B -->
+            <div class="flow" data-class-dragging="dragging">
+                <!-- ghost: a serial path's lane B while something is dragged, drawn grey as a drop on it would make it
+                     (split just before the slot under the pointer, merge at the end). -->
+                <div class="lane" data-for="l : lanes" data-class-idle="!l.line || l.ghost" data-class-ghost="l.ghost">
+                    <div class="lane-label">{{l.label}}</div>
+                    <div class="lane-track">
+                        <!-- Lane B's line stops one corner radius short where a connector turns into it. -->
+                        <div class="lane-line" data-if="l.line" data-style-left="l.line_left" data-style-right="l.line_right"
+                             data-class-trim-l="l.split && (l.split_straight || l.split_right)"
+                             data-class-trim-r="l.join && (l.join_straight || !l.join_right)"></div>
+                        <!-- Lane B: split and merge connectors up to lane A, as Helix Native draws them: a corner box
+                             at lane A's end (leaves the line, turns sideways), a straight run, a corner box at lane B's
+                             end (turns down, then into lane B's line). Each corner box sits on the side facing the run. -->
+                        <div class="bend upper" data-if="l.split && !l.split_straight" data-class-r="l.split_right"
+                             data-class-l="!l.split_right" data-style-left="l.split_x"></div>
+                        <div class="run" data-if="l.split && !l.split_straight" data-style-left="l.split_hl"
+                             data-style-right="l.split_hr"></div>
+                        <div class="bend lower" data-if="l.split && !l.split_straight" data-class-l="l.split_right"
+                             data-class-r="!l.split_right" data-style-left="l.split_bx"></div>
+                        <div class="straight" data-if="l.split && l.split_straight" data-style-left="l.split_x"></div>
+                        <div class="bend corner l" data-if="l.split && l.split_straight" data-style-left="l.split_x"></div>
+                        <div class="bend upper" data-if="l.join && !l.join_straight" data-class-r="l.join_right"
+                             data-class-l="!l.join_right" data-style-left="l.join_x"></div>
+                        <div class="run" data-if="l.join && !l.join_straight" data-style-left="l.join_hl"
+                             data-style-right="l.join_hr"></div>
+                        <div class="bend lower" data-if="l.join && !l.join_straight" data-class-l="l.join_right"
+                             data-class-r="!l.join_right" data-style-left="l.join_bx"></div>
+                        <div class="straight" data-if="l.join && l.join_straight" data-style-left="l.join_x"></div>
+                        <div class="bend corner r" data-if="l.join && l.join_straight" data-style-left="l.join_x"></div>
+                        <!-- Split / merge dots on lane A's line: click to edit their settings. -->
+                        <div class="junction split" data-if="l.split" data-style-left="l.split_x"
+                             data-class-selected="l.split_sel" data-event-click="pick_cell(l.split_id)"
+                             data-event-dragstart="junction_start(l.split_id)" data-event-drag="junction_drag(l.split_id)"></div>
+                        <div class="junction join" data-if="l.join" data-style-left="l.join_x"
+                             data-class-selected="l.join_sel" data-event-click="pick_cell(l.join_id)"
+                             data-event-dragstart="junction_start(l.join_id)" data-event-drag="junction_drag(l.join_id)"></div>
+                        <div class="cell" data-for="c : l.cells" data-class-io="c.kind == 'io'"
+                             data-class-block="c.kind == 'block'" data-class-empty="c.kind == 'empty'"
+                             data-class-selected="c.selected" data-class-bypassed="c.bypassed" data-class-hidden="c.hidden"
+                             data-event-click="pick_cell(c.id)" data-event-mousedown="cell_menu(c.id)" data-event-dragstart="drag_cell(c.id); junction_start(c.id)"
+                             data-event-dragdrop="drop_cell(c.id)" data-event-dragend="drag_end"
+                             data-event-dragover="drag_over(c.id)" data-event-dragout="drag_out" data-class-dragio="c.drag_io"
+                             data-event-drag="junction_drag(c.id)"
+                             data-class-droptarget="c.id == drop_id">
+                            <div class="grip">
+                                <!-- The unit's own block icon when the firmware has one, else a colour box. -->
+                                <div data-attr-class="'node ' + c.cls + (c.icon != '' ? ' has-icon' : '')">
+                                    <img class="node-icon" data-if="c.icon != ''" data-attr-src="c.icon" data-class-tall="c.tall_icon"/>
+                                </div>
+                                <div data-attr-class="'cell-label ' + c.cls">{{c.label}}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="edit-tabs">
+                <div class="edit-tab" data-class-active="edit_tab == 'edit'" data-event-click="pick_edit_tab('edit')">EDIT</div>
+                <div class="edit-tab" data-class-active="edit_tab == 'assign'" data-event-click="pick_edit_tab('assign')">BYPASS/CONTROLLER ASSIGN</div>
+                <div class="edit-tab" data-class-active="edit_tab == 'commands'" data-event-click="pick_edit_tab('commands')">COMMAND CENTER</div>
+            </div>
+
+            <!-- Bypass / Controller Assign, laid out as HX Edit's: every assignment of the preset in a table (click a
+                 column to sort), the selected row's editor beside it. Selecting a block in the chain shows its row
+                 (or a new one: pick a parameter and a controller). -->
+            <div class="edit" data-if="edit_tab == 'assign'">
+                <div class="ca-table">
+                    <div class="ca-row ca-head">
+                        <div class="ca-col" data-event-click="ca_sort_by(0)">Block{{ca_sort == 0 ? (ca_sort_asc ? '  ^' : '  v') : ''}}</div>
+                        <div class="ca-col" data-event-click="ca_sort_by(1)">Parameter{{ca_sort == 1 ? (ca_sort_asc ? '  ^' : '  v') : ''}}</div>
+                        <div class="ca-col" data-event-click="ca_sort_by(2)">Source{{ca_sort == 2 ? (ca_sort_asc ? '  ^' : '  v') : ''}}</div>
+                    </div>
+                    <div class="fill">
+                        <div class="scroll">
+                            <div class="ca-row" data-for="r : ca_rows" data-class-selected="r.selected" data-event-click="ca_pick(r.index)">
+                                <div data-attr-class="'ca-col cat-text ' + r.cls">{{r.block}}</div>
+                                <div data-attr-class="'ca-col cat-text ' + r.cls">{{r.param}}</div>
+                                <div data-attr-class="'ca-col cat-text ' + r.cls">{{r.source}}</div>
+                            </div>
+                            <div class="hint ca-empty" data-if="ca_rows.size == 0">Nothing assigned in this preset. Select a
+                                block in the signal flow, then pick a parameter and a controller.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ca-editor">
+                    <div class="hint" data-if="!ca_has_sel">Select a block in the signal flow, or a row.</div>
+                    <div data-if="ca_has_sel">
+                        <div class="ca-line">
+                            <span data-attr-class="'swatch ' + ca_block_cls"></span>
+                            <span class="ca-block">{{ca_block}}</span>
+                            <div data-attr-class="'ca-drop cat-text ' + ca_block_cls" data-event-click="ca_param_menu">
+                                <span class="grow">{{ca_param}}</span><span class="caret">v</span></div>
+                        </div>
+                        <div class="ca-line">
+                            <span class="ca-field">Controller</span>
+                            <div class="ca-drop" data-event-click="ca_source_menu"><span class="grow">{{ca_source}}</span><span class="caret">v</span></div>
+                        </div>
+                        <!-- A switch: latching / momentary (the switch's, as on the unit). -->
+                        <div class="ca-prop" data-if="ca_kind == 'switch' || ca_kind == 'bypass'">
+                            <span class="ca-prop-name">Type</span>
+                            <div class="gs-segs">
+                                <div class="gs-seg" data-class-on="!ca_momentary" data-event-click="ca_type(0)">Latching</div>
+                                <div class="gs-seg" data-class-on="ca_momentary" data-event-click="ca_type(1)">Momentary</div>
+                            </div>
+                        </div>
+                        <!-- Pedal / switch / MIDI: the two values the knob moves between, in its own units. -->
+                        <div data-if="ca_kind == 'switch' || ca_kind == 'range' || ca_kind == 'midi'">
+                            <div class="ca-prop">
+                                <span class="ca-prop-name">{{ca_min_name}}</span>
+                                <span class="ca-prop-value">{{ca_min_text}}</span>
+                                <div class="button small quiet" data-event-click="ca_step(0, -1)">-</div>
+                                <div class="button small quiet" data-event-click="ca_step(0, 1)">+</div>
+                            </div>
+                            <input type="range" class="slider ca-slider" min="0" max="1" step="0.001" data-attr-value="ca_min_pos"
+                                   data-event-change="ca_range(0)"/>
+                            <div class="ca-prop">
+                                <span class="ca-prop-name">{{ca_max_name}}</span>
+                                <span class="ca-prop-value">{{ca_max_text}}</span>
+                                <div class="button small quiet" data-event-click="ca_step(1, -1)">-</div>
+                                <div class="button small quiet" data-event-click="ca_step(1, 1)">+</div>
+                            </div>
+                            <input type="range" class="slider ca-slider" min="0" max="1" step="0.001" data-attr-value="ca_max_pos"
+                                   data-event-change="ca_range(1)"/>
+                        </div>
+                        <div class="ca-prop" data-if="ca_kind == 'midi'">
+                            <span class="ca-prop-name">MIDI CC</span>
+                            <input type="text" class="gs-number" data-attr-value="ca_cc"
+                                   data-event-change="ca_cc_set" data-event-blur="ca_cc_set"/>
+                        </div>
+                        <!-- A switch: its LED and scribble strip label. -->
+                        <div data-if="ca_kind == 'switch' || ca_kind == 'bypass'">
+                            <div class="ca-prop">
+                                <span class="ca-prop-name">Switch LED</span>
+                                <div class="ca-drop small" data-event-click="ca_led_menu"><span class="grow">{{ca_led}}</span><span class="caret">v</span></div>
+                            </div>
+                            <div class="ca-prop">
+                                <span class="ca-prop-name">Customize</span>
+                                <input type="text" class="snap-name ca-label" data-attr-value="ca_label" data-event-change="ca_label_set"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Command Center: four rows of same-size slots: Instant 1-6; FS1-6; FS7-12; EXP 1, EXP 2, EXP toe switch,
+                 Variax Volume / Tone. Edits go to the snapshot selected in the snapshot bar (said above the grid);
+                 the selected slot's editor on the right. -->
+            <div class="edit" data-if="edit_tab == 'commands'">
+                <div class="cc-grid-wrap">
+                    <div class="cc-snap">Commands of {{cc_snap}} (pick another in the snapshot bar)</div>
+                    <div class="cc-grid-row">
+                        <div data-for="c : cc_top" data-attr-class="c.cls" data-event-click="cc_pick(c.index)">
+                            <div class="cc-name">{{c.label}}</div><div class="cc-type">{{c.extra}}</div>
+                        </div>
+                    </div>
+                    <div class="cc-grid-row">
+                        <div data-for="c : cc_row1" data-attr-class="c.cls" data-event-click="cc_pick(c.index)">
+                            <div class="cc-name">{{c.label}}</div><div class="cc-type">{{c.extra}}</div>
+                        </div>
+                    </div>
+                    <div class="cc-grid-row">
+                        <div data-for="c : cc_row2" data-attr-class="c.cls" data-event-click="cc_pick(c.index)">
+                            <div class="cc-name">{{c.label}}</div><div class="cc-type">{{c.extra}}</div>
+                        </div>
+                    </div>
+                    <div class="cc-grid-row">
+                        <div data-for="c : cc_pedals" data-attr-class="c.cls" data-event-click="cc_pick(c.index)">
+                            <div class="cc-name">{{c.label}}</div><div class="cc-type">{{c.extra}}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ca-editor">
+                    <div class="hint" data-if="!cc_has_sel">Pick a slot. Instant commands go out when the preset loads;
+                        a switch's when it's pressed; a pedal's or knob's as it moves.</div>
+                    <div data-if="cc_has_sel">
+                        <div class="fs-insp-title">{{cc_sel_name}}</div>
+                        <div class="ca-line">
+                            <span class="ca-field">Command</span>
+                            <div class="ca-drop" data-event-click="cc_type_menu"><span class="grow">{{cc_sel_type}}</span><span class="caret">v</span></div>
+                        </div>
+                        <!-- Each field as HX Edit has it: a choice of names as a dropdown, else a number (typed or -/+)
+                             with HX Edit's text for it beside ("Base", "C3", "Off"). -->
+                        <div class="ca-prop" data-for="f : cc_fields">
+                            <span class="ca-prop-name">{{f.label}}</span>
+                            <div class="ca-drop small" data-if="f.list" data-event-click="cc_field_menu(f.index)">
+                                <span class="grow">{{f.text != '' ? f.text : f.value}}</span><span class="caret">v</span></div>
+                            <span class="ca-prop-value" data-if="!f.list && f.text != ''">{{f.text}}</span>
+                            <input type="text" class="gs-number" data-if="!f.list" data-attr-value="f.value"
+                                   data-event-change="cc_field(f.index)" data-event-blur="cc_field(f.index)"/>
+                            <div class="button small quiet" data-if="!f.list" data-event-click="cc_step(f.index, -1)">-</div>
+                            <div class="button small quiet" data-if="!f.list" data-event-click="cc_step(f.index, 1)">+</div>
+                        </div>
+                        <div data-if="cc_is_switch">
+                            <div class="ca-prop">
+                                <span class="ca-prop-name">Type</span>
+                                <div class="gs-segs">
+                                    <div class="gs-seg" data-class-on="!cc_momentary" data-event-click="cc_type(0)">Latching</div>
+                                    <div class="gs-seg" data-class-on="cc_momentary" data-event-click="cc_type(1)">Momentary</div>
+                                </div>
+                            </div>
+                            <div class="ca-prop">
+                                <span class="ca-prop-name">Switch LED</span>
+                                <div class="ca-drop small" data-event-click="cc_led_menu"><span class="grow">{{cc_led}}</span><span class="caret">v</span></div>
+                            </div>
+                            <div class="ca-prop">
+                                <span class="ca-prop-name">Customize</span>
+                                <input type="text" class="snap-name ca-label" data-attr-value="cc_label" data-event-change="cc_label_set"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edit area: category, model, params -->
+            <div class="edit" data-if="edit_tab == 'edit'">
+                <div class="col categories">
+                    <div class="fill">
+                        <div class="scroll">
+                            <div class="cat-row" data-for="c : categories" data-class-selected="c.index == cat_sel"
+                                 data-class-disabled="!c.enabled" data-event-click="pick_category(c.index)">
+                                <img class="cat-icon" data-if="c.icon != ''" data-attr-src="c.icon"/>
+                                <div data-attr-class="'swatch ' + c.cls" data-if="c.icon == ''"></div>
+                                <div data-attr-class="'cat-text ' + c.cls">{{c.label}}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col models">
+                    <div class="dropdown">
+                        <div class="dropdown-head" data-event-click="toggle_sub">
+                            <span class="grow">{{sub_label}}</span><span class="caret" data-if="subs.size > 1">v</span>
+                        </div>
+                        <div class="dropdown-list" data-if="sub_open">
+                            <div class="dropdown-item" data-for="s : subs" data-event-click="pick_sub(s.index)">{{s.label}}</div>
+                        </div>
+                    </div>
+                    <div class="fill">
+                        <div class="scroll">
+                            <!-- Drag a model onto the signal flow to add it there. -->
+                            <div class="model-row" data-for="m : models" data-class-selected="m.index == model_sel"
+                                 data-class-disabled="!m.enabled" data-event-click="pick_model(m.index)" data-event-dragstart="drag_model(m.index)"
+                                 data-event-dragend="drag_end">{{m.label}}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col params">
+                    <div class="params-head">
+                        <div data-attr-class="'block-title ' + block_cls">{{block_title}}</div>
+                        <div class="power" data-if="has_block" data-class-on="block_on"
+                             data-event-click="toggle_bypass">{{block_on ? 'ON' : 'OFF'}}</div>
+                        <!-- Block copy / paste (also Ctrl+C / Ctrl+V): paste goes onto the selected slot. -->
+                        <div class="button small" data-class-disabled="!can_copy_block" data-event-click="block_copy">Copy</div>
+                        <div class="button small" data-class-disabled="!can_paste_block" data-event-click="block_paste">Paste</div>
+                    </div>
+                    <!-- A block with a linked cab: its own knobs or the cab's. -->
+                    <div class="seg-row cab-tabs" data-if="has_cab">
+                        <div class="seg" data-class-on="!edit_cab" data-event-click="pick_cab_view(0)">{{main_label}}</div>
+                        <div class="seg" data-class-on="edit_cab" data-event-click="pick_cab_view(1)">{{cab_label}}</div>
+                    </div>
+                    <div class="hint" data-if="edit_hint != ''">{{edit_hint}}</div>
+                    <!-- The input block: the preset's Guitar In-Z and Guitar Pad (Global = the unit's setting). -->
+                    <div class="input-settings" data-if="input_settings.size > 0">
+                        <div class="input-setting" data-for="c : input_settings">
+                            <span class="input-setting-label">{{c.label}}</span>
+                            <div class="gs-segs" data-if="c.kind == 'segs'">
+                                <div class="seg" data-for="o : c.options" data-class-on="o.index == c.value"
+                                     data-event-click="input_setting(c.id, o.index)">{{o.label}}</div>
+                            </div>
+                            <div class="gs-step" data-if="c.kind == 'step'">
+                                <div class="button small quiet" data-event-click="input_setting_step(c.id, -1)">&lt;</div>
+                                <span class="gs-current">{{c.current}}</span>
+                                <div class="button small quiet" data-event-click="input_setting_step(c.id, 1)">&gt;</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="fill">
+                        <div data-attr-class="'scroll param-list ' + block_cls">
+                            <!-- Wheel over a row changes its value (shift: finer), like HX Edit. -->
+                            <div class="param" data-for="p : params" data-event-mousescroll="param_wheel(p.index)"
+                                 data-event-mousedown="param_menu(p.index)">
+                                <div class="param-top" data-if="!p.ir_slot">
+                                    <span class="param-name grow">{{p.name}}</span><span class="param-value">{{p.value}}</span>
+                                </div>
+                                <!-- A user IR slot (IR Select, NAM Model): the unit's IR names in a dropdown; the slider
+                                     below moves through the same slots. -->
+                                <div class="param-top" data-if="p.ir_slot">
+                                    <span class="param-name grow">{{p.name}}</span>
+                                    <div class="dropdown ir-drop">
+                                        <div class="dropdown-head" data-class-open="p.open" data-event-click="irsel_toggle(p.index)">
+                                            <span class="grow">{{p.value}}</span><span class="caret">v</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Our own track and fill (from the left, or from the middle for pan / balance),
+                                     with the range input on top for the handle and the input. -->
+                                <div class="bar" data-if="p.slider">
+                                    <div class="bar-track"></div>
+                                    <div class="bar-fill" data-style-left="p.fill_left" data-style-width="p.fill_width"></div>
+                                    <input type="range" class="slider" min="0" max="1" step="0.001"
+                                           data-attr-value="p.pos" data-event-change="param_change(p.index)"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- IRs: the unit's 128 user IR slots, read when the editor connects. -->
+    <div class="page" data-class-off="page != 'irs'">
+        <div class="welcome" data-if="!ir_connected">
+            <div>{{ir_status}}</div>
+            <div class="hint">The IR slots are read from the Helix when it's connected (Online in the Presets tab).</div>
+        </div>
+        <div class="ir-page" data-if="ir_connected">
+            <div class="ir-list">
+                <div class="page-head ir-head">
+                    <div class="page-title grow">IRs</div>
+                    <div class="ir-summary">{{ir_summary}}</div>
+                    <div class="button small" data-event-click="ir_refresh">Refresh</div>
+                </div>
+                <!-- Filter: every slot, IRs (and empty slots), or only NAM captures (read from each slot's data). -->
+                <div class="ir-filter">
+                    <div class="gs-segs">
+                        <div class="gs-seg" data-class-on="ir_filter == 'all'" data-event-click="ir_set_filter('all')">All</div>
+                        <div class="gs-seg" data-class-on="ir_filter == 'ir'" data-event-click="ir_set_filter('ir')">IRs</div>
+                        <div class="gs-seg" data-class-on="ir_filter == 'nam'" data-event-click="ir_set_filter('nam')">NAM captures</div>
+                    </div>
+                </div>
+                <div class="fill">
+                    <div class="scroll">
+                        <div class="ir-row" data-for="r : ir_rows" data-if="r.shown" data-attr-irslot="r.slot" data-class-selected="r.slot == ir_sel"
+                             data-class-blank="r.empty" data-event-click="ir_pick(r.slot)"
+                             data-event-mousedown="ir_menu(r.slot)">
+                            <div class="ir-num">{{r.number}}</div>
+                            <div class="ir-name">{{r.empty ? '(empty)' : r.name}}</div>
+                            <div class="ir-kind" data-if="r.kind == 'nam'">NAM</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ir-detail">
+                <div data-if="ir_sel < 0" class="hint">Pick a slot.</div>
+                <div data-if="ir_sel >= 0">
+                    <div class="page-section">Slot {{ir_sel_number}}</div>
+                    <div class="info-row"><div class="info-label">Name</div><div class="info-value">{{ir_sel_name}}</div></div>
+                    <div class="info-row"><div class="info-label">Holds</div><div class="info-value">{{ir_sel_kind}}</div></div>
+                    <div class="info-row" data-for="d : ir_sel_details">
+                        <div class="info-label"></div><div class="info-value">{{d}}</div>
+                    </div>
+                    <div class="info-row" data-if="ir_sel_hash != ''">
+                        <div class="info-label">Hash</div><div class="info-value">{{ir_sel_hash}}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">New name</div>
+                        <input type="text" class="ir-name-edit" maxlength="63" data-value="ir_name_edit"
+                               data-event-change="ir_name"/>
+                    </div>
+                    <!-- Nothing is written until "Write to Helix" in the confirmation below. -->
+                    <div class="ir-actions" data-if="!ir_asking">
+                        <div class="button small" data-class-disabled="ir_busy" data-event-click="ir_import">Import WAV / NAM...</div>
+                        <div class="button small" data-class-disabled="ir_busy || ir_sel_empty" data-event-click="ir_rename">Rename</div>
+                        <div class="button small" data-class-disabled="ir_busy || ir_sel_empty" data-event-click="ir_clear">Clear</div>
+                    </div>
+                    <div class="ir-confirm" data-if="ir_asking">
+                        <div class="ir-question">{{ir_question}}</div>
+                        <div class="ir-note" data-for="n : ir_notes">{{n}}</div>
+                        <div class="ir-actions">
+                            <div class="button small danger" data-event-click="ir_confirm">Write to Helix</div>
+                            <div class="button small" data-event-click="ir_cancel">Cancel</div>
+                        </div>
+                    </div>
+                    <div class="ir-message" data-if="ir_message != ''">{{ir_message}}</div>
+                    <div class="hint">Drop a .wav or a .nam file on a slot to import it there. A slot holds 2048
+                        samples at 48 kHz, mono: WAV files are converted to that (other rates resampled, the first
+                        channel used, longer files cut and faded) as HX Edit does. A .nam capture (the small "A2 Lite"
+                        model of a slimmable capture) is converted for the NAM block on the way.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firmware: four sub-tabs. Base = the user's stock .hxf, the starting point for builds and the way back to
+         stock; Unit = what the connected Helix runs; File = the .hxf the editor has open; Flash = write a .hxf to the
+         unit. Each tab shows its status in the tab itself. -->
+    <div class="page fw-page" data-class-off="page != 'firmware'">
+        <!-- The notice (frontend/shellview.*): covers the whole tab until "I understand"; mouse clicks don't reach the
+             tab underneath. -->
+        <div class="notice-cover" data-if="fw_notice">
+            <div class="notice">
+                <div class="notice-title">Modified firmware: read this first</div>
+                <p>Modified firmware is unofficial and at your own risk.</p>
+                <p>Line 6 won't support problems caused by it.</p>
+
+                <div class="notice-section">Before you flash a modded build</div>
+                <p>Check that update mode (below) starts on your unit.</p>
+                <p>Keep your stock firmware at hand.</p>
+
+                <div class="notice-section">Going back to stock: update mode</div>
+                <p>Update mode starts before the firmware does, so it also works when a build doesn't boot.</p>
+                <p>Switch the unit off, then hold these while you switch it on:</p>
+                <!-- Text in a flex row needs its own span: RmlUi drops loose text there. -->
+                <div class="notice-step"><span class="notice-unit">Helix Floor / LT</span><span class="notice-how">footswitches
+                    6 and 12 (Mode and Tap)</span></div>
+                <div class="notice-step"><span class="notice-unit">Helix Rack</span><span class="notice-how">encoders 1 and 6
+                    pressed down (the two outermost)</span></div>
+                <p class="notice-gap">Then flash the official firmware, here or with Line 6's Updater.</p>
+                <p>Update mode needs firmware 1.06.5 or later on the unit.</p>
+                <p>Go back to stock before any service request.</p>
+
+                <div class="notice-section">Presets with mod blocks</div>
+                <p>They only work on modded firmware: on stock firmware those blocks are dropped.</p>
+
+                <p class="notice-more">More on update mode and the other power-on options:
+                   <span class="link" data-event-click="open_url('https://kb.line6.com/helix-rack-lt-fx-stomp-reset-procedures-and-troubleshooting-tricks')">Line
+                   6 Knowledge Base: reset procedures and troubleshooting</span> (opens in your browser).</p>
+                <div class="notice-actions">
+                    <div class="toggle" data-class-on="fw_notice_no_more" data-event-click="fw_notice_toggle">
+                        <span class="box"></span><span>Don't show again</span></div>
+                    <div class="grow"></div>
+                    <div class="button" data-event-click="fw_notice_ok">I understand</div>
+                </div>
+            </div>
+        </div>
+        <div class="fw-tabs">
+            <div class="fw-tab" data-class-active="fw_tab == 'base'" data-event-click="pick_fw_tab('base')">
+                <div class="fw-tab-name">Base firmware</div>
+                <div data-attr-class="'fw-tab-state ' + base_tone">{{base_headline}}</div>
+            </div>
+            <div class="fw-tab" data-class-active="fw_tab == 'unit'" data-event-click="pick_fw_tab('unit')">
+                <div class="fw-tab-name">On the unit</div>
+                <div data-attr-class="'fw-tab-state ' + unit_card.tone">{{unit_card.headline}}</div>
+            </div>
+            <div class="fw-tab" data-class-active="fw_tab == 'file'" data-event-click="pick_fw_tab('file')">
+                <div class="fw-tab-name">Open file</div>
+                <div data-attr-class="'fw-tab-state ' + file_card.tone">{{file_card.headline}}</div>
+            </div>
+            <div class="fw-tab" data-class-active="fw_tab == 'flash'" data-event-click="pick_fw_tab('flash')">
+                <div class="fw-tab-name">Flash</div>
+                <div class="fw-tab-state none">{{fl_phase == 'running' ? 'Flashing...' : (fl_file != '' ? fl_file : 'Write firmware to the unit')}}</div>
+            </div>
+        </div>
+
+        <!-- Base firmware (frontend/baseview.*) -->
+        <div class="fill" data-if="fw_tab == 'base'">
+            <div class="scroll page-body">
+                <div data-attr-class="'fw-card ' + base_tone">
+                    <div class="fw-card-head">
+                        <div class="fw-card-label grow">Base firmware</div>
+                        <div class="button" data-if="base_can_use_open" data-event-click="base_use_open">Use the open file</div>
+                        <div class="button" data-class-disabled="base_busy" data-event-click="base_choose">Choose firmware...</div>
+                    </div>
+                    <div class="fw-headline">{{base_headline}}</div>
+                    <div class="fw-detail">{{base_detail}}</div>
+                    <div class="info-row" data-for="r : base_rows">
+                        <div class="info-label">{{r.label}}</div>
+                        <div class="info-value">{{r.value}}</div>
+                    </div>
+                </div>
+                <div class="actions" data-if="base_ok">
+                    <div class="button danger" data-event-click="base_flash">Flash the base (back to stock)...</div>
+                    <div class="hint grow">Opens the Flash tab with this file; nothing is sent before you confirm there.</div>
+                </div>
+                <p>The base firmware is your own stock firmware from Line 6's updater. Mod builds (Mods tab) always start from it,
+                   whatever file the editor has open, and are saved next to it as "&lt;unit&gt; &lt;version&gt; + mods.hxf".
+                   It is never changed. Flashing it puts the unit back to stock; if the unit doesn't boot, power it on
+                   holding Mode + Tap and flash this file.</p>
+            </div>
+        </div>
+
+        <!-- Unit -->
+        <div class="fill" data-if="fw_tab == 'unit'">
+            <div class="scroll page-body">
+                <div data-attr-class="'fw-card ' + unit_card.tone">
+                    <div class="fw-card-label">On the unit</div>
+                    <div class="fw-headline">{{unit_card.headline}}</div>
+                    <div class="fw-detail">{{unit_card.detail}}</div>
+                    <div class="fw-mods" data-if="unit_card.mods.size > 0">
+                        <div class="fw-mod" data-for="m : unit_card.mods" data-class-off="m.bad">
+                            <div class="fw-mod-name">{{m.bad ? 'Not in this build' : 'Installed'}}</div>
+                            <div class="fw-mod-title">{{m.label}}</div>
+                            <div class="fw-mod-what">{{m.value}}</div>
+                        </div>
+                    </div>
+                    <div class="info-row" data-for="r : unit_card.rows">
+                        <div class="info-label">{{r.label}}</div>
+                        <div class="info-value" data-class-bad="r.bad">{{r.value}}</div>
+                    </div>
+                </div>
+                <div class="page-section">Update service</div>
+                <div class="info-row">
+                    <div class="info-value grow">{{fl_device != '' ? fl_device : 'Product, version and Line 6 build number, read from the unit (read-only; pauses live editing for a moment).'}}</div>
+                    <div class="button" data-class-disabled="fl_busy" data-event-click="fl_info">Read unit info</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Open file -->
+        <div class="fill" data-if="fw_tab == 'file'">
+            <div class="scroll page-body">
+                <div data-attr-class="'fw-card ' + file_card.tone">
+                    <div class="fw-card-head">
+                        <div class="fw-card-label grow">Open file{{fw_path != '' ? ': ' + fw_path : ''}}</div>
+                        <div class="button" data-event-click="open_file">{{loaded ? 'Open other firmware...' : 'Open firmware...'}}</div>
+                    </div>
+                    <div class="fw-headline">{{file_card.headline}}</div>
+                    <div class="fw-detail">{{file_card.detail}}</div>
+                    <div class="fw-mods" data-if="file_card.mods.size > 0">
+                        <div class="fw-mod" data-for="m : file_card.mods" data-class-off="m.bad">
+                            <div class="fw-mod-name">{{m.bad ? 'Not in this build' : 'Installed'}}</div>
+                            <div class="fw-mod-title">{{m.label}}</div>
+                            <div class="fw-mod-what">{{m.value}}</div>
+                        </div>
+                    </div>
+                    <div class="info-row" data-for="r : file_card.rows">
+                        <div class="info-label">{{r.label}}</div>
+                        <div class="info-value" data-class-bad="r.bad">{{r.value}}</div>
+                    </div>
+                </div>
+                <div data-if="loaded">
+                <div class="page-section">Contents</div>
+                <div class="info-row" data-for="r : fw_info">
+                    <div class="info-label">{{r.label}}</div>
+                    <div class="info-value" data-class-bad="r.bad">{{r.value}}</div>
+                </div>
+                <div data-if="fw_warnings.size > 0">
+                    <div class="page-section">Warnings</div>
+                    <div class="warning" data-for="w : fw_warnings">{{w}}</div>
+                </div>
+                <div class="page-section">Records</div>
+                <div class="rec-row rec-head">
+                    <div class="rec-name">Record</div><div class="rec-size">Size</div>
+                    <div class="rec-crc">CRC32</div><div class="rec-checks">Checks</div>
+                </div>
+                <div class="rec-row" data-for="r : fw_records">
+                    <div class="rec-name">{{r.name}}</div><div class="rec-size">{{r.size}}</div>
+                    <div class="rec-crc">{{r.crc}}</div>
+                    <div class="rec-checks" data-class-bad="!r.ok">{{r.checks}}</div>
+                </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flash: write a .hxf to the unit. Nothing is sent without the confirmation below. -->
+        <div class="fill" data-if="fw_tab == 'flash'">
+            <div class="scroll page-body">
+                <div class="fw-card none">
+                    <div class="fw-card-head">
+                        <div class="fw-card-label grow">File to flash</div>
+                        <div class="button" data-class-disabled="fl_busy" data-event-click="fl_choose">Choose firmware...</div>
+                    </div>
+                    <div class="fw-headline small">{{fl_file != '' ? fl_file : 'No file'}}</div>
+                    <div class="fw-detail" data-if="fl_file == ''">The editor's open file is used unless you choose another one here.</div>
+                    <div class="info-row">
+                        <div class="info-label">Unit now</div>
+                        <div data-attr-class="'info-value tone-' + unit_card.tone">{{unit_card.headline}}{{unit_card.tone == 'ours' ? ' (' + unit_card.detail + ')' : ''}}</div>
+                    </div>
+                </div>
+                <div class="bad" data-if="fl_status != ''">{{fl_status}}</div>
+
+                <div data-if="fl_ready">
+                    <div class="options">
+                        <div class="toggle" data-class-on="fl_fast" data-event-click="fl_toggle('fast')">
+                            <span class="box"></span><span>Only records that changed since this program last flashed the unit</span>
+                        </div>
+                        <div class="toggle" data-class-on="fl_slots" data-event-click="fl_toggle('slots')">
+                            <span class="box"></span><span>Check every slot first, like the Line 6 Updater (read-only, about 3 min)</span>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Presets</div>
+                            <div class="seg" data-class-on="fl_presets == 0" data-event-click="fl_presets_mode(0)">Automatic</div>
+                            <div class="seg" data-class-on="fl_presets == 1" data-event-click="fl_presets_mode(1)">Keep</div>
+                            <div class="seg" data-class-on="fl_presets == 2" data-event-click="fl_presets_mode(2)">Rebuild</div>
+                            <div class="info-value presets-why">{{fl_presets_text}}</div>
+                        </div>
+                    </div>
+                    <div class="hint">Rebuild: the unit deletes its compiled presets and rebuilds them on the next boot (needed when knobs or DSP modules change). Keep: no finish step; the unit shows "Update failed" and boots the new firmware after a power cycle.</div>
+
+                    <div class="rec-row rec-head">
+                        <div class="rec-name">Record</div><div class="rec-size">Size</div>
+                        <div class="rec-plan">Plan</div><div class="rec-checks">Progress</div>
+                    </div>
+                    <div class="rec-row" data-for="r : fl_rows" data-attr-class="'rec-row ' + r.cls">
+                        <div class="rec-name">{{r.name}}</div><div class="rec-size">{{r.size}}</div>
+                        <div class="rec-plan">{{r.plan}}</div>
+                        <div class="rec-checks">
+                            <div class="mini-bar" data-if="r.step != ''"><div class="mini-fill" data-style-width="r.bar"></div></div>
+                            <span>{{r.step}}</span>
+                        </div>
+                    </div>
+                    <div class="summary">{{fl_summary}}</div>
+
+                    <!-- Idle: rehearse or flash. -->
+                    <div class="actions" data-if="fl_phase == 'idle'">
+                        <div class="button" data-event-click="fl_rehearse">Rehearse (fake unit)</div>
+                        <div class="button danger" data-class-disabled="fl_busy" data-event-click="fl_ask">Flash to the unit...</div>
+                        <div class="grow"></div>
+                        <div class="button quiet" data-class-disabled="fl_busy" data-event-click="fl_assume">The unit runs this file</div>
+                    </div>
+
+                    <!-- Confirmation: names the file and what gets written. -->
+                    <div class="confirm" data-if="fl_phase == 'confirm'">
+                        <div class="confirm-title">Write to the Helix?</div>
+                        <p>{{fl_file}}: {{fl_summary}} Presets {{fl_presets_text}}.</p>
+                        <p>Don't unplug or switch off the unit while it runs. If a flash stops halfway, the unit needs a
+                           recovery: power off, hold Mode + Tap while switching on, then flash stock firmware (here or with
+                           the Line 6 Updater). Have one at hand.</p>
+                        <div class="actions">
+                            <div class="button danger" data-event-click="fl_confirm">Write to the unit</div>
+                            <div class="button" data-event-click="fl_cancel">Cancel</div>
+                        </div>
+                    </div>
+
+                    <!-- Running / finished. -->
+                    <div class="progress" data-if="fl_phase == 'running' || fl_phase == 'done' || fl_phase == 'failed'">
+                        <div class="progress-title">{{fl_sim ? 'Rehearsal (fake unit, nothing sent)' : 'Flashing the unit'}}</div>
+                        <div class="big-bar"><div class="big-fill" data-class-failed="fl_phase == 'failed'" data-style-width="fl_progress_w"></div></div>
+                        <div class="progress-text">{{fl_progress_w}}  {{fl_progress_text}}</div>
+                        <div class="actions" data-if="fl_phase == 'running'">
+                            <div class="button" data-if="fl_can_stop" data-event-click="fl_stop">Stop</div>
+                            <div class="hint" data-if="!fl_can_stop">Writing: this runs to the end. Don't unplug the unit.</div>
+                        </div>
+                        <div data-if="fl_phase == 'done'">
+                            <div class="ok-text">{{fl_result}}</div>
+                            <div class="actions"><div class="button" data-event-click="fl_dismiss">OK</div></div>
+                        </div>
+                        <div data-if="fl_phase == 'failed'">
+                            <div class="bad">{{fl_result}}</div>
+                            <div class="recovery" data-if="fl_recovery">
+                                <div class="confirm-title">The unit needs a recovery</div>
+                                <p>1. Switch the Helix off. 2. Hold Mode + Tap while switching it on (update mode).
+                                   3. Flash stock firmware, here or with the Line 6 Updater.</p>
+                            </div>
+                            <p data-if="!fl_recovery">Nothing was written to the slots. If the unit shows "Update failed", switch it off and on.</p>
+                            <div class="actions"><div class="button" data-event-click="fl_dismiss">OK</div></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="page-section" data-if="fl_log.size > 0">Log</div>
+                <div class="log-line" data-for="l : fl_log">{{l}}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mods: the module marketplace for the open stock firmware (frontend/modsview.*). -->
+    <div class="page" data-class-off="page != 'mods'">
+        <div class="fill">
+            <div class="scroll page-body">
+                <div class="page-head">
+                    <div class="page-title grow">{{mods_header}}</div>
+                    <div class="button" data-class-disabled="mods_busy" data-event-click="mods_refresh">Refresh</div>
+                </div>
+                <div class="mods-signed" data-if="mods_signed != ''" data-class-unsigned="!mods_is_signed">{{mods_signed}}</div>
+                <div class="hint">{{mods_status}}</div>
+                <div class="mods-list" data-if="mods_rows.size > 0">
+                    <div class="mods-row mods-head">
+                        <span class="mods-check"></span><span class="mods-name">Module</span><span class="mods-ver">Version</span>
+                        <span class="mods-slot">Slot</span><span class="mods-size">Size</span><span class="mods-state">State</span>
+                    </div>
+                    <div class="mods-row" data-for="r : mods_rows" data-class-on="r.selected" data-class-always="r.always"
+                         data-event-click="mods_toggle(r.id)">
+                        <span class="mods-check"><span class="box"></span></span>
+                        <span class="mods-name">{{r.name}}<span class="mods-needs" data-if="r.needs != ''">  {{r.needs}}</span>
+                            <span class="mods-needs" data-if="r.always">  always in</span></span>
+                        <span class="mods-ver">{{r.version}}</span><span class="mods-slot">{{r.slot}}</span>
+                        <span class="mods-size">{{r.size}}</span>
+                        <span class="mods-state" data-class-ok="r.cached">{{r.state}}</span>
+                    </div>
+                </div>
+                <div class="actions" data-if="mods_ready">
+                    <div class="button" data-class-disabled="mods_busy" data-event-click="mods_download">Download chosen</div>
+                    <div class="button" data-class-disabled="mods_busy" data-event-click="mods_build">Build modded firmware</div>
+                    <div class="button danger" data-if="mods_built != ''" data-class-disabled="mods_busy"
+                         data-event-click="mods_flash">Flash this build...</div>
+                    <div class="hint grow">Builds from the base firmware with the checked modules (missing ones are
+                        downloaded first) and saves the result next to it. Nothing is sent to the unit.</div>
+                </div>
+                <!-- A build running: the Flash tab's bar, with the step it's on. -->
+                <div class="progress mods-progress" data-if="mods_building">
+                    <div class="progress-title">Building modded firmware</div>
+                    <div class="big-bar"><div class="big-fill" data-style-width="mods_build_pct"></div></div>
+                    <div class="progress-text">{{mods_build_pct}}  {{mods_build_step}}</div>
+                </div>
+                <!-- The build report: a read-only text box like the USB log (select + Ctrl+C, or Copy report).
+                     Kept in the document (data-class-off) so the read-only guard stays on its wrapper. -->
+                <div class="mods-report-bar" data-class-off="mods_report == ''">
+                    <div class="mods-report-title grow">Build report</div>
+                    <div class="button" data-event-click="mods_copy_report">Copy report</div>
+                </div>
+                <div id="mods-report-wrap" class="mods-report-wrap" data-class-off="mods_report == ''">
+                    <textarea class="mon-box" data-value="mods_report" wrap="nowrap"></textarea>
+                </div>
+                <p>Modules come from the module server for your exact base firmware (model, version, image hash; set on
+                   Firmware > Base firmware) and are kept in a local folder, so they're there offline. You can also drop a
+                   .ohem package on the window. A modded build always starts from the base firmware, whatever file is
+                   open; flashing it is a separate step on the Firmware tab, and needs the recovery path (power on holding
+                   Mode + Tap) to work first.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monitor: what goes over USB to the unit (USB), and MIDI input (MIDI, read-only). Newest lines first. -->
+    <div class="page" data-class-off="page != 'monitor'">
+        <div class="fw-tabs">
+            <div class="fw-tab" data-class-active="mon_tab == 'usb'" data-event-click="mon_pick('usb')">
+                <div class="fw-tab-name">USB traffic</div>
+                <div class="fw-tab-state none">{{mon_usb_count}}</div>
+            </div>
+            <div class="fw-tab" data-class-active="mon_tab == 'midi'" data-event-click="mon_pick('midi')">
+                <div class="fw-tab-name">MIDI in</div>
+                <div data-attr-class="'fw-tab-state ' + (mon_listening ? 'ours' : 'none')">{{mon_midi_state}}</div>
+            </div>
+        </div>
+
+        <!-- USB -->
+        <div class="mon-bar" data-if="mon_tab == 'usb'">
+            <div class="hint grow">{{mon_usb_frozen ? 'Frozen while you select (click outside the box or Resume to catch up). Ctrl+C copies the selection.' : 'Commands the editor sends, what the unit answers, its notices, and status lines. Select lines and press Ctrl+C.'}}</div>
+            <div data-attr-class="'button' + (mon_usb_paused ? ' primary' : '')" data-event-click="mon_usb_pause">{{mon_usb_paused ? 'Resume' : 'Pause'}}</div>
+            <div class="button" data-event-click="mon_copy">Copy all</div>
+            <div class="button" data-event-click="mon_clear">Clear</div>
+        </div>
+        <div id="mon-usb-wrap" class="mon-box-wrap" data-if="mon_tab == 'usb'">
+            <textarea id="mon-usb-text" class="mon-box" data-value="mon_usb_text" wrap="nowrap"
+                      data-event-focus="mon_usb_focus(true)" data-event-blur="mon_usb_focus(false)"></textarea>
+        </div>
+
+        <!-- MIDI -->
+        <div class="mon-bar" data-if="mon_tab == 'midi'">
+            <select class="mon-port-select" data-value="mon_port" data-event-change="mon_port_changed">
+                <option value="all">All ports</option>
+                <option data-for="p, i : mon_port_names" data-attr-value="i">{{p}}</option>
+            </select>
+            <div data-attr-class="'button' + (mon_listening ? '' : ' primary')" data-event-click="mon_listen">{{mon_listening ? 'Stop listening' : 'Listen'}}</div>
+            <div class="toggle" data-class-on="mon_hide_rt" data-event-click="mon_toggle('rt')">
+                <span class="box"></span><span>Hide clock</span>
+            </div>
+            <div class="toggle" data-class-on="mon_debug_only" data-event-click="mon_toggle('debug')">
+                <span class="box"></span><span>Debug words only</span>
+            </div>
+            <div class="grow"></div>
+            <div class="button" data-event-click="mon_copy">Copy all</div>
+            <div class="button" data-event-click="mon_clear">Clear</div>
+        </div>
+        <div class="mon-ports" data-if="mon_tab == 'midi' && mon_ports.size > 0">
+            <span class="info-label">Ports</span>
+            <span class="mon-port" data-for="p : mon_ports">{{p}}</span>
+        </div>
+        <div class="mon-words" data-if="mon_tab == 'midi'">
+            <div class="mon-word" data-for="w : mon_words" data-class-off="!w.seen">
+                <div class="mon-word-name">{{w.name}}</div>
+                <div class="mon-word-value">{{w.value}}</div>
+                <div class="mon-word-sub">{{w.hex}} {{w.age}}</div>
+            </div>
+            <div class="hint mon-words-hint">Debug words of our NAM / MIDI Guitar test builds: ch 16, CC 40-55, one word about every second (MIDI Guitar on the same path).</div>
+        </div>
+        <div class="fill" data-if="mon_tab == 'midi'">
+            <div class="scroll mon-list">
+                <div class="mon-row" data-for="r : mon_midi" data-class-debug="r.debug">
+                    <span class="mon-time">{{r.time}}</span><span class="mon-port-name">{{r.port}}</span><span>{{r.text}}</span>
+                </div>
+                <div class="hint" data-if="mon_midi.size == 0">{{mon_listening ? 'Listening: nothing received yet. USB MIDI out of the Helix is broken on Windows 11 24H2 and later; a DIN MIDI interface works.' : 'Click Listen to open every MIDI input port. Nothing is sent.'}}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Helix: the unit's own settings, changed live. Global EQ = graph with handles + the values; Global Settings =
+         its menu pages (names from the firmware). -->
+    <div class="page" data-class-off="page != 'helix'">
+        <div class="fw-tabs">
+            <div class="fw-tab" data-class-active="helix_tab == 'eq'" data-event-click="pick_helix_tab('eq')">
+                <div class="fw-tab-name">Global EQ</div>
+                <div data-attr-class="'fw-tab-state ' + (!geq_ready ? 'none' : (geq_bypassed ? 'none' : 'ours'))">{{!geq_ready ? 'Not connected' : (geq_bypassed ? 'Bypassed' : 'On')}}</div>
+            </div>
+            <div class="fw-tab" data-class-active="helix_tab == 'settings'" data-event-click="pick_helix_tab('settings')">
+                <div class="fw-tab-name">Global Settings</div>
+                <div class="fw-tab-state none">{{gs_ready ? 'Menu pages' : 'Not connected'}}</div>
+            </div>
+        </div>
+
+        <!-- Global EQ -->
+        <div class="fill" data-if="helix_tab == 'eq'">
+            <div class="scroll page-body">
+                <p data-if="!geq_ready">Read from the Helix when it's connected.</p>
+                <!-- Laid out like HX Edit's Global EQ window (screens/eq.png). -->
+                <div class="eq-panel" data-if="geq_ready">
+                    <div class="eq-head">
+                        <div class="button" data-event-click="geq_reset">Reset</div>
+                        <div class="grow"></div>
+                        <span class="eq-apply-label">Apply EQ</span>
+                        <select class="mon-port-select eq-apply" data-value="geq_apply" data-event-change="geq_apply_set">
+                            <option value="1">1/4"</option>
+                            <option value="2">XLR</option>
+                            <option value="3">1/4" + XLR</option>
+                        </select>
+                        <div class="grow"></div>
+                        <div class="eq-power" data-class-on="!geq_bypassed" data-event-click="geq_power"
+                             title="Global EQ on / bypassed"><span class="icon">&#xe140;</span></div>
+                    </div>
+                    <!-- Response graph: grid, the curve from thin columns, the handles; frequencies on top, dB right. -->
+                    <div id="eq-graph" class="eq-graph" data-class-bypassed="geq_bypassed">
+                        <div class="eq-hline" data-for="d : geq_dblines" data-class-major="d.major" data-style-top="d.pos">
+                            <span>{{d.label}}</span></div>
+                        <div class="eq-vline" data-for="f : geq_flines" data-class-major="f.major" data-style-left="f.pos">
+                            <span>{{f.label}}</span></div>
+                        <img class="eq-curve" data-if="geq_curve != ''" data-attr-src="geq_curve"/>
+                        <div class="eq-bypassed" data-if="geq_bypassed">GLOBAL EQ BYPASSED</div>
+                        <div data-for="h : geq_handles"
+                             data-attr-class="'eq-handle ' + h.cls + (h.selected ? ' selected' : '') + (h.off ? ' off' : '')"
+                             data-style-left="h.left"
+                             data-style-top="h.top" data-event-mousedown="geq_pick(h.index)" data-event-drag="geq_drag(h.index)"
+                             data-event-mousescroll="geq_wheel(h.index)"></div>
+                    </div>
+                    <!-- One column per band: each value with its up / down steps and a bar to drag. -->
+                    <div class="eq-bands">
+                        <div data-for="b : geq_bands" data-attr-class="'eq-band ' + b.cls + (b.selected ? ' selected' : '')"
+                             data-event-mousedown="geq_pick(b.index)">
+                            <div class="eq-band-name">{{b.name}}</div>
+                            <div class="eq-param" data-for="p : b.params">
+                                <div class="eq-param-row">
+                                    <span class="eq-param-label">{{p.label}}</span>
+                                    <input type="text" class="eq-value" data-attr-value="p.text"
+                                           data-event-change="geq_text(p.index)" data-event-blur="geq_text(p.index)"/>
+                                    <div class="eq-steps">
+                                        <span class="icon" data-event-click="geq_step(p.index, 1)">&#xe070;</span>
+                                        <span class="icon" data-event-click="geq_step(p.index, -1)">&#xe06d;</span>
+                                    </div>
+                                </div>
+                                <input type="range" class="eq-bar" min="0" max="1" step="0.001" data-attr-value="p.pos"
+                                       data-event-change="geq_bar(p.index)"/>
+                            </div>
+                            <div class="eq-band-actions">
+                                <div class="button small quiet" data-event-click="geq_band_reset(b.index)">{{b.index == 0 || b.index == 4 ? 'Off' : 'Reset'}}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="eq-level">
+                        <div class="eq-param-row">
+                            <span class="eq-param-label">Level</span>
+                            <input type="text" class="eq-value" data-attr-value="geq_level.text"
+                                   data-event-change="geq_text(11)" data-event-blur="geq_text(11)"/>
+                            <div class="eq-steps">
+                                <span class="icon" data-event-click="geq_step(11, 1)">&#xe070;</span>
+                                <span class="icon" data-event-click="geq_step(11, -1)">&#xe06d;</span>
+                            </div>
+                        </div>
+                        <input type="range" class="eq-bar" min="0" max="1" step="0.001" data-attr-value="geq_level.pos"
+                               data-event-change="geq_bar(11)"/>
+                    </div>
+                </div>
+                <p class="hint" data-if="geq_ready">Drag a peak's handle (frequency across, gain up / down), the mouse
+                   wheel on it sets Q; drag a cut sideways, past the end it turns off. Values: type them ("1.4k",
+                   "off"), use the arrows or drag the bar. Changes go to the Helix at once. The curve is drawn from the
+                   settings, not measured on the unit.</p>
+            </div>
+        </div>
+
+        <!-- Global Settings: the unit's menu pages (names from the firmware; values from the Helix, changed live). -->
+        <div class="fill" data-if="helix_tab == 'settings'">
+            <div class="scroll page-body" data-if="!gs_ready">
+                <p>Read from the Helix when it's connected (and a firmware file is open: the setting names come from it).</p>
+            </div>
+            <!-- Like the unit's Global Settings menu: its pages in a column, the chosen page's settings beside it. -->
+            <div class="gs-layout" data-if="gs_ready">
+                <div class="gs-pages">
+                    <div class="gs-page" data-for="p : gs_pages" data-class-active="p.index == gs_page"
+                         data-event-click="gs_pick_page(p.index)">{{p.label}}</div>
+                </div>
+                <div class="gs-main"><div class="scroll gs-body">
+                    <div class="gs-title">{{gs_page_name}}</div>
+                    <div class="gs-row" data-for="r : gs_rows">
+                        <div class="gs-label">{{r.label}}</div>
+                        <div class="gs-control">
+                            <div data-if="!r.known" class="gs-unknown">-</div>
+                            <div data-if="r.known && r.kind == 'segs'" class="gs-segs">
+                                <div class="gs-seg" data-for="o : r.options" data-class-on="o.index == r.value"
+                                     data-event-click="gs_pick(r.id, o.index)">{{o.label}}</div>
+                            </div>
+                            <div data-if="r.known && r.kind == 'list'" class="gs-list" data-event-click="gs_list(r.id)">
+                                <span class="grow">{{r.current}}</span><span class="caret">v</span>
+                            </div>
+                            <input data-if="r.known && r.kind == 'number'" type="text" class="gs-number"
+                                   data-attr-value="r.current" data-event-change="gs_number(r.id)"
+                                   data-event-blur="gs_number(r.id)"/>
+                        </div>
+                    </div>
+                    <p class="hint">Changes go to the Helix at once, as on its own Global Settings menu.</p>
+                </div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings: the editor's own options; about / licence text. -->
+    <div class="page" data-class-off="page != 'settings'">
+        <div class="fill">
+            <div class="scroll page-body">
+                <div class="page-title">Settings</div>
+
+                <div class="page-section">Editor</div>
+                <div class="info-row">
+                    <div class="info-label">Connection</div>
+                    <div class="seg" data-class-on="online" data-event-click="set_online(1)">Online</div>
+                    <div class="seg" data-class-on="!online" data-event-click="set_online(0)">Offline</div>
+                </div>
+                <p>Online: the editor connects to the Helix (and keeps looking for one) and edits it live. Offline: it
+                   edits the presets in your firmware file only, and leaves the Helix free for HX Edit or the Updater.</p>
+                <div class="info-row">
+                    <div class="info-label">Save</div>
+                    <div class="seg" data-class-on="!confirm_save" data-event-click="set_confirm_save(0)">Save at once</div>
+                    <div class="seg" data-class-on="confirm_save" data-event-click="set_confirm_save(1)">Ask first</div>
+                </div>
+                <p>Save (Ctrl+S) writes the preset you're editing over the one stored in its slot. "Ask first" shows
+                   what it replaces before writing. IR imports, renames and clears always ask.</p>
+                <p>The Helix's own settings (Global EQ, Global Settings) are in the Helix tab.</p>
+
+                <div class="page-section">About</div>
+                <p>oshexed: an open-source editor for the Line 6 Helix LT. MIT licence (LICENSE.txt next to the
+                   program). Not affiliated with, endorsed by or supported by Line 6 or Yamaha. "Line 6", "Helix" and
+                   "HX Edit" are trademarks of their owners, used only to describe compatibility.</p>
+                <p>Modified firmware is unofficial and at your own risk; Line 6 won't support problems caused by it.
+                   You can always go back to stock firmware (Mode + Tap at power-on, then flash the official file).</p>
+                <p>All model, preset and firmware data is read at runtime from your own files. The program
+                   ships none of it.</p>
+                <p>Icons: Lucide (lucide.dev), ISC licence, parts MIT (Feather). Copyright (c) Lucide Icons and
+                   Contributors, (c) 2013-present Cole Bemis. Full text: assets/fonts/LICENSE-lucide.txt.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading progress, load errors, the open file. -->
+    <div class="statusbar">{{status}}</div>
+    </div>
+
+    <!-- IR slot list of an IR Select / NAM Model param (editorview ir_*): here, outside the scrolling param list, so
+         nothing clips it; placed under (or above) the param's dropdown head. The overlay closes it. -->
+    <div class="ctx-overlay" data-if="irsel_shown" data-event-mousedown="irsel_close"></div>
+    <div class="ir-popup" data-if="irsel_shown" data-style-left="irsel_left" data-style-top="irsel_top" data-style-max-height="irsel_height">
+        <div class="ir-item" data-for="c : irsel_choices" data-class-on="c.cls == 'on'" data-class-empty="!c.enabled"
+             data-event-click="irsel_pick(c.index)">{{c.label}}</div>
+    </div>
+
+    <!-- Right-click menu (frontend/contextmenu.*): the overlay catches the click that closes it. -->
+    <div class="ctx-overlay" data-if="ctx_open" data-event-mousedown="ctx_close"></div>
+    <div class="ctx-menu" data-if="ctx_open" data-style-left="ctx_left" data-style-top="ctx_top">
+        <div class="ctx-title" data-if="ctx_title != ''">{{ctx_title}}</div>
+        <div data-for="r : ctx_rows">
+            <div class="ctx-sep" data-if="r.separator"></div>
+            <div class="ctx-item" data-if="!r.separator && !r.palette" data-class-disabled="!r.enabled" data-class-checked="r.checked"
+                 data-event-click="ctx_pick(r.index)">{{r.label}}</div>
+            <!-- A row of colour dots (e.g. a snapshot's colour): each dot is its own choice. -->
+            <div class="ctx-palette" data-if="r.palette">
+                <span class="ctx-palette-label">{{r.label}}</span>
+                <span data-for="s : r.swatches" data-attr-class="'ctx-swatch ' + s.cls + (s.selected ? ' on' : '')"
+                      data-event-click="ctx_swatch(r.index, s.index)"></span>
+            </div>
+        </div>
+    </div>
+</body>
+</rml>
