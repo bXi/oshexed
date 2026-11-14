@@ -206,9 +206,12 @@
                             <div class="grip">
                                 <!-- The unit's own block icon when the firmware has one, else a colour box. -->
                                 <div data-attr-class="'node ' + c.cls + (c.icon != '' ? ' has-icon' : '')">
+                                    <!-- A tall icon's background stays clear (it would cover the line as a rectangle):
+                                         this disc behind its circle stops the line at the circle's edge. -->
+                                    <div class="node-disc" data-if="c.tall_icon"></div>
                                     <img class="node-icon" data-if="c.icon != ''" data-attr-src="c.icon" data-class-tall="c.tall_icon"/>
                                 </div>
-                                <div data-attr-class="'cell-label ' + c.cls">{{c.label}}</div>
+                                <div data-attr-class="'cell-label ' + c.cls + (c.tall_icon ? ' tall' : '')">{{c.label}}</div>
                             </div>
                         </div>
                     </div>

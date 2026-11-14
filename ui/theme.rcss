@@ -1252,9 +1252,22 @@ select.mon-port-select selectbox option:checked { color: #6fcf7f; }
 /* Input / output nodes with the unit's Block_In* / Block_Out* image (36x38 px, round): no circle of ours under it. */
 .cell.io .node.has-icon { border-color: transparent; background-color: transparent; }
 .cell.io .node-icon { left: -4dp; top: -5dp; width: 30dp; height: 32dp; border-radius: 16dp; }
-/* Path 2A / 2B / 2A+B outputs: 36x66 (circle + arrow down), kept at their own ratio; the circle sits where the
-   round ones do and the arrow hangs below. */
-.cell.io .node-icon.tall { height: 55dp; border-radius: 0; background-color: transparent; }
+/* Path 2A / 2B / 2A+B outputs: 36x66 (circle + arrow down), kept at their own ratio. The image has 14 px of empty
+   space above its circle (the round ones start at the top), so it moves up by that (14 x 30/36 = 11.7dp) to put the
+   circle on the line where the round ones sit; the arrow hangs below, and the label moves down past it. */
+.cell.io .node-icon.tall { top: -17dp; height: 55dp; border-radius: 0; background-color: transparent; }
+.cell-label.tall { margin-top: 13dp; }
+/* Behind a tall icon's circle (centre 11dp / 10dp in the node, as the round icons'), the flow's colour: the lane line
+   stops at the circle's edge, as it does at the round icons, whose own background does the same. */
+.cell.io .node-disc {
+    position: absolute;
+    left: -4dp;
+    top: -5dp;
+    width: 30dp;
+    height: 30dp;
+    border-radius: 15dp;
+    background-color: #111214;
+}
 /* Drop target while dragging: a lighter fill behind the icon. */
 .cell.block.droptarget .node-icon { background-color: #3a3c41; }
 /* Selected block: its category's dark shade behind the icon. */
