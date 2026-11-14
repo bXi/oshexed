@@ -38,6 +38,7 @@ troubleshooting](https://kb.line6.com/helix-rack-lt-fx-stomp-reset-procedures-an
 - **Unit:** Helix LT only. Other Helix models are recognised and load with a warning.
 - **Firmware:** 3.80.0 (stock, or a build made from it with oshexed). Other versions load with a warning.
 - **Platform:** Windows. Linux and macOS are planned; the editor itself is portable, the USB link is not yet.
+- **Download:** `oshexed.exe` for Windows (x64) on the [Releases](../../releases) page, or build it yourself (below).
 - **Stage:** in active development and used on real hardware, but not a finished product. Keep backups.
 
 ## What it does

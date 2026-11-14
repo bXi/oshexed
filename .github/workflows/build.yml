@@ -1,0 +1,82 @@
+# Windows build of oshexed.exe (MinSizeRel, stripped with -s; w64devkit GCC, the same toolchain as local builds).
+# Every push and pull request: build, test, and keep the zip as a workflow artifact.
+# A pushed tag "v*" also publishes the zip as a GitHub Release, downloadable by anyone.
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  W64DEVKIT_VERSION: 2.4.0
+  W64DEVKIT_SHA256: 80678c29a56982d7d3b342f12a0060157df5654c38d82d4adc40704070d6aafb
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout oshexed
+        uses: actions/checkout@v4
+
+      - name: Checkout Luminoveau
+        uses: actions/checkout@v4
+        with:
+          repository: bXi/luminoveau
+          path: luminoveau
+
+      - name: Install w64devkit and Ninja
+        shell: pwsh
+        run: |
+          $exe = "$env:RUNNER_TEMP\w64devkit.7z.exe"
+          Invoke-WebRequest "https://github.com/skeeto/w64devkit/releases/download/v$env:W64DEVKIT_VERSION/w64devkit-x64-$env:W64DEVKIT_VERSION.7z.exe" -OutFile $exe
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne $env:W64DEVKIT_SHA256) { throw "w64devkit hash mismatch: $hash" }
+          & $exe -y "-o$env:RUNNER_TEMP" | Out-Null
+          "$env:RUNNER_TEMP\w64devkit\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          choco install ninja -y --no-progress
+
+      - name: Configure
+        shell: pwsh
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=MinSizeRel
+          -DCMAKE_EXE_LINKER_FLAGS_MINSIZEREL=-s
+          -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+          -DLUMINOVEAU_DIR="${{ github.workspace }}/luminoveau"
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build
+
+      - name: Test
+        shell: pwsh
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $out = "oshexed"
+          New-Item -ItemType Directory $out | Out-Null
+          Copy-Item build/frontend/oshexed.exe, build/frontend/LICENSE.txt, build/frontend/LICENSE-lucide.txt, build/frontend/THIRD_PARTY_NOTICES.txt, README.md $out
+          $name = if ("${{ github.ref_type }}" -eq "tag") { "oshexed-${{ github.ref_name }}-windows-x64.zip" } else { "oshexed-$("${{ github.sha }}".Substring(0,7))-windows-x64.zip" }
+          Compress-Archive -Path $out -DestinationPath $name
+          "ZIP=$name" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: oshexed-windows-x64
+          path: ${{ env.ZIP }}
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" "$env:ZIP" --title "oshexed ${{ github.ref_name }}" --generate-notes
